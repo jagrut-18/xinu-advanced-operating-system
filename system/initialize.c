@@ -27,6 +27,16 @@ struct	memblk	memlist;	/* List of free memory blocks		*/
 int	prcount;		/* Total number of live processes	*/
 pid32	currpid;		/* ID of currently executing process	*/
 
+
+/* platform structure */
+
+#ifdef ARM_QEMU
+
+#include <platform.h>
+struct platform platform;
+
+#endif
+
 extern uint32 nsaddr;
 
 /* Control sequence to reset the console colors and cusor positiion	*/

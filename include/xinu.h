@@ -51,7 +51,7 @@
 #ifdef ARM_QEMU
 
 #include <platform.h>
-struct platform platform;
+extern struct platform platform;
 
 #endif
 
