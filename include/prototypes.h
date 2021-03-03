@@ -69,6 +69,10 @@ extern	uint32	dot2ip(char *, uint32 *);
 extern	pid32	enqueue(pid32, qid16);
 extern	pid32	dequeue(qid16);
 
+/* in file delqueue.c */
+
+extern qid16 delqueue(qid16);
+
 /* in file intutils.S */
 
 extern	intmask	disable(void);
@@ -371,6 +375,10 @@ extern	syscall	putc(did32, char);
 
 pid32 dequeue(qid16);
 pid32 enqueue(pid32, qid16);
+
+/* in file delqueue.c */
+
+qid16 delqueue(qid16);
 
 /* in file ramclose.c */
 extern	devcall	ramclose(struct dentry *);
