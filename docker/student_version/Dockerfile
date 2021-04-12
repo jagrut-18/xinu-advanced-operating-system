@@ -9,6 +9,7 @@ RUN dpkg --add-architecture armel
 RUN dpkg --add-architecture i386
 RUN apt-get update && apt-get -y install apt-utils sudo git make bridge-utils dnsmasq flex bison vim gawk zlib1g-dev
 RUN apt-get -y install crossbuild-essential-i386 crossbuild-essential-armel gcc-arm-none-eabi qemu-system-x86 qemu-system-arm openssh-client
+RUN apt-get -y install netcat socat net-tools watch 
 
 RUN export uid=1000 gid=1000 && \
     useradd -rm -d /home/xinu -s /bin/bash -G sudo -u ${uid} xinu && \
@@ -22,6 +23,9 @@ ENV HOME /home/xinu
 WORKDIR $HOME
 
 ADD --chown=xinu Makedefs.arm .
+
+RUN mkdir /etc/qemu
+RUN echo "allow virbr0" > /etc/qemu/bridge.conf
 
 RUN mkdir ./.ssh
 RUN ssh-keygen -q -t rsa -N '' -f ./.ssh/id_rsa
