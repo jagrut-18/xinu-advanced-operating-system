@@ -18,14 +18,14 @@ RUN export uid=1000 gid=1000 && \
     chown -R ${uid} /home/xinu && \
     chown -R ${uid} /opt
 
+RUN mkdir /etc/qemu
+RUN echo "allow virbr0" > /etc/qemu/bridge.conf
+
 USER xinu
 ENV HOME /home/xinu
 WORKDIR $HOME
 
 ADD --chown=xinu Makedefs.arm .
-
-RUN mkdir /etc/qemu
-RUN echo "allow virbr0" > /etc/qemu/bridge.conf
 
 RUN mkdir ./.ssh
 RUN ssh-keygen -q -t rsa -N '' -f ./.ssh/id_rsa
