@@ -13,7 +13,15 @@ NODE=0
 GPORT=556${NODE}
 
 ifndef PLATFORM
-$(error PLATFORM is not set. Edit your Makedefs file and add 'PLATFORM=arm-qemu'or 'PLATFORM=arm-bbb')
+$(info Make sure the following VARIABLES are set in your Makedefs)
+$(info )
+$(info | VARIABLE       | Value                               |)
+$(info | -------------- | ----------------------------------- |)
+$(info | PLATFORM       | "arm-qemu"                          |)
+$(info | COMPILER_ROOT  | Location of arm-none-eabi-gcc suite |)
+$(info | LIBGCC_LOC     | Location of libgcc.a for suite      |)
+$(info )
+$(error PLATFORM is not set. Make sure you have a Makedefs file and the VARIABLES above set)
 endif
 
 ARCH = echo ${PLATFORM} | awk -F '-' '{print $1}'
