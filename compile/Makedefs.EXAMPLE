@@ -38,6 +38,6 @@ CONF_LFLAGS = -lfl
 #CONF_LFLAGS = -L/opt/local/lib -lfl
 
 # For Homebrew on macOS
-#COMPILER_ROOT = /usr/local/Cellar/gcc-arm-none-eabi/20150925/bin/arm-none-eabi-
-#LIBGCC_LOC = /usr/local/Cellar/gcc-arm-none-eabi/20150925/lib/gcc/arm-none-eabi/4.9.3
-#CONF_LFLAGS = -L/usr/local/opt/flex/lib -lfl
+# COMPILER_ROOT = /usr/local/bin/arm-none-eabi-
+# LIBGCC_LOC = /Applications/ARM/lib/gcc/arm-none-eabi/10.3.1
+# CONF_LFLAGS = -L/usr/local/opt/flex/lib -lfl
