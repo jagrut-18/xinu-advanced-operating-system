@@ -10,8 +10,8 @@ PLATFORM=arm-qemu
 # For SICE Linux machines
 # - silo.luddy.indiana.edu
 # - tank.luddy.indiana.edu
-COMPILER_ROOT   =      $(shell which arm-none-eabi-gcc | sed 's|gcc$||')
-LIBGCC_LOC      =      $(shell arm-none-eabi-gcc -print-libgcc-file-name | sed 's|/libgcc.a$||')
+COMPILER_ROOT   =      $(shell which arm-none-eabi-gcc | sed 's|gcc$$||')
+LIBGCC_LOC      =      $(shell arm-none-eabi-gcc -print-libgcc-file-name | sed 's|/libgcc.a$$||')
 CONF_LFLAGS = -lfl
 
 # x86 compiler in the VM
