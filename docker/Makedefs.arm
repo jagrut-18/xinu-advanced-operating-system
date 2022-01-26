@@ -19,7 +19,7 @@ PLATFORM=arm-qemu
 
 # For the Linux VM
 COMPILER_ROOT   =      /usr/bin/arm-none-eabi-
-LIBGCC_LOC      =      /usr/lib/gcc/arm-none-eabi/7.3.1
+LIBGCC_LOC      =      /usr/lib/gcc/arm-none-eabi/8.3.1
 CONF_LFLAGS = -lfl
 
 # For SoIC Linux machines
