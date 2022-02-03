@@ -13,8 +13,9 @@
  *------------------------------------------------------------------------
  */
 
-char functions[2][100] = { 
+char functions[3][100] = { 
                             "hello",
+                            "list",
                             "prodcons",
                         };
 
@@ -53,13 +54,14 @@ shellcmd xsh_run(int nargs, char *args[]) {
         }
         else {
             printFunctions();
+            return OK;
         }
 
 	return 0;
 }
 
 void printFunctions() {
-    for (int i = 0; i < 2; i++){
+    for (int i = 0; i < 3; i++){
         printf("%s\n", functions[i]);
     }
 }
