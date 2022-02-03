@@ -40,7 +40,7 @@ shellcmd xsh_hello(int nargs, char *args[]) {
 		printf("Hello %s, Welcome to the world of Xinu!!\n", args[1]);
 	}
 	else {
-		fprintf(stderr, "Syntax: run hello name");
+		fprintf(stderr, "Syntax: run hello name\n");
 	}
 
 	return 0;

@@ -29,7 +29,7 @@ shellcmd xsh_prodcons(int nargs, char *args[]) {
 	/* Check argument count */
 
 	if (nargs > 2) {
-		fprintf(stderr, "Syntax: run prodcons [counter]");
+		fprintf(stderr, "Syntax: run prodcons [counter]\n");
 		return 1;
 	}
 	// if (nargs > 2) {
