@@ -29,21 +29,27 @@ shellcmd xsh_prodcons(int nargs, char *args[]) {
 	/* Check argument count */
 
 	if (nargs > 2) {
-		fprintf(stderr, "%s: too many arguments\n", args[0]);
-		fprintf(stderr, "Try '%s --help' for more information\n",
-			args[0]);
+		fprintf(stderr, "Syntax: run prodcons [counter]");
 		return 1;
 	}
+	// if (nargs > 2) {
+	// 	fprintf(stderr, "%s: too many arguments\n", args[0]);
+	// 	fprintf(stderr, "Try '%s --help' for more information\n",
+	// 		args[0]);
+	// 	return 1;
+	// }
 	
-    int count = 2000;
+    int count = 200;
+	can_read = semcreate(0);
+	can_write = semcreate(1);
 
     if (nargs == 2){
         char *new_count = args[1];
         count = atoi(new_count);
     }
 
-    resume(create(producer, 1024, 20, "producer", 1, count));
-    resume(create(consumer, 1024, 20, "consumer", 1, count));
+    resume(create(consumer, 1024, 20, "consumer", 3, count, can_read, can_write));
+    resume(create(producer, 1024, 20, "producer", 3, count, can_read, can_write));
 	
 
 	return 0;

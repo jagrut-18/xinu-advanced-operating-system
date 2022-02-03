@@ -61,6 +61,9 @@ extern  shellcmd xsh_prodcons(int32, char *[]);
 /* in file xsh_ps.c */
 extern	shellcmd  xsh_ps	(int32, char *[]);
 
+/* in file xsh_run.c */
+extern	shellcmd  xsh_run	(int32, char *[]);
+
 /* in file xsh_sleep.c */
 extern	shellcmd  xsh_sleep	(int32, char *[]);
 
