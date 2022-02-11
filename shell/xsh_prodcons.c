@@ -50,7 +50,5 @@ shellcmd xsh_prodcons(int nargs, char *args[]) {
 
     resume(create(consumer, 1024, 20, "consumer", 3, count, can_read, can_write));
     resume(create(producer, 1024, 20, "producer", 3, count, can_read, can_write));
-	
-
 	return 0;
 }

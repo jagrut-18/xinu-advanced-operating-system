@@ -3,6 +3,7 @@
 #include <xinu.h>
 #include <string.h>
 #include <stdio.h>
+#include <exit_process.h>
 
 /*------------------------------------------------------------------------
  * xsh_hello - obtain a string and print a hello statement using it.
@@ -42,6 +43,6 @@ shellcmd xsh_hello(int nargs, char *args[]) {
 	else {
 		fprintf(stderr, "Syntax: run hello name\n");
 	}
-
+	signal(exit_process);
 	return 0;
 }
