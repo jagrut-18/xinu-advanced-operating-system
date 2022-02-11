@@ -22,14 +22,14 @@ void consumer_bb(int id, int count) {
   //   - read the next available value from the global array `arr_q`
   //   - print consumer id (starting from 0) and read value as:
   //     "name : consumer_X, read : X"
-
-  for (int i = 0; i <= count; i++){
-    wait(can_read);
-    int val = arr_q[tail];
-    tail  = (tail + 1) % 5;
+  int val;
+  for (int i = 0; i < count; i++){
+    wait(can_read_bb);
+    val = arr_q[tail];
     printf("name : consumer_%d, read : %d\n", id, val);
+    tail  = (tail + 1) % 5;
     values_remaining--;
-    signal(can_write);
+    signal(can_write_bb);
     if (values_remaining == 0){
       signal(exit_process);
     }

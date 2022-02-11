@@ -22,6 +22,7 @@ char functions[4][100] = {
                         };
 
 void printFunctions();
+void prodcons_bb();
 
 shellcmd xsh_run(int nargs, char *args[]) {
 
@@ -77,16 +78,19 @@ void printFunctions() {
     }
 }
 
-int values_remaining;
+int arr_q[5];
+sid32 can_read_bb, can_write_bb;
+int head, tail, values_remaining;
 
 void prodcons_bb(int nargs, char *args[]) {
     if (nargs != 5) {
         fprintf(stderr, "Syntax: run prodcons_bb <# of producer processes> <# of consumer processes> <# of iterations the producer runs> <# of iterations the consumer runs>\n");
-		return 1;
+		signal(exit_process);
+        return;
 	}
   //create and initialize semaphores to necessary values
-  can_read = semcreate(0);
-  can_write = semcreate(1);
+  can_read_bb = semcreate(0);
+  can_write_bb = semcreate(1);
 
   //initialize read and write indices for the queue
   head = 0;
@@ -101,17 +105,20 @@ void prodcons_bb(int nargs, char *args[]) {
   if ((n_prod * i_prod) != (n_con * i_con)){
       fprintf(stderr, "Iteration Mismatch Error: the number of producer(s) iteration does not match the consumer(s) iteration\n");
       signal(exit_process);
-      return OK;
+      return;
   }
 
   values_remaining = n_prod * i_prod;
 
   for (int i = 0; i < n_prod; i++){
-      resume(create(producer_bb, 1024, 20, "producer_bb", 2, i, i_prod));
+      char name[10];
+      sprintf(name, "producer_%d", i);
+      resume(create(producer_bb, 1024, 20, name, 2, i, i_prod));
   }
 
   for (int i = 0; i < n_con; i++){
-      resume(create(consumer_bb, 1024, 20, "consumer_bb", 2, i, i_con));
+      char name[10];
+      sprintf(name, "consumer_%d", i);
+      resume(create(consumer_bb, 1024, 20, name, 2, i, i_con));
   }
-
 }

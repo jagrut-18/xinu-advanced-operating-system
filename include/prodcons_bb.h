@@ -1,14 +1,13 @@
 // declare globally shared array
-int arr_q[5];
+extern int arr_q[5];
 
 // declare globally shared semaphores
-sid32 can_read;
-sid32 can_write;
-sid32 end_process;
+extern sid32 can_read_bb;
+extern sid32 can_write_bb;
 
 // declare globally shared read and write indices
-int head;
-int tail;
+extern int head;
+extern int tail;
 
 // function prototypes
 void consumer_bb(int id, int count);

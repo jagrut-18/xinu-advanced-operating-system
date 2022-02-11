@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <prodcons.h>
+#include <exit_process.h>
 
 /*------------------------------------------------------------------------
  * xsh_prodcons - producer and consumer
@@ -23,6 +24,7 @@ shellcmd xsh_prodcons(int nargs, char *args[]) {
 		printf("Description:\n");
 		printf("\tProducer and Consumer\n");
 		printf("\t--help\tdisplay this help and exit\n");
+		signal(exit_process);
 		return 0;
 	}
 
@@ -30,6 +32,7 @@ shellcmd xsh_prodcons(int nargs, char *args[]) {
 
 	if (nargs > 2) {
 		fprintf(stderr, "Syntax: run prodcons [counter]\n");
+		signal(exit_process);
 		return 1;
 	}
 	// if (nargs > 2) {

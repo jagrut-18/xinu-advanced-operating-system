@@ -22,11 +22,11 @@ void producer_bb(int id, int count) {
   //   - print producer id (starting from 0) and written value as:
   //     "name : producer_X, write : X"
   for (int i = 0; i < count; i++){
-    wait(can_write);
+    wait(can_write_bb);
     arr_q[head] = i;
-    head++;
     printf("name : producer_%d, write : %d\n", id, i);
-    signal(can_read);
+    head = (head + 1) % 5;
+    signal(can_read_bb);
   }
   
 }
