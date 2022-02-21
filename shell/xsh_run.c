@@ -61,7 +61,7 @@ shellcmd xsh_run(int nargs, char *args[]) {
         else if(strncmp(args[0], "futest", 6) == 0) {
             /* create a process with the function as an entry point. */
             future_prodcons(nargs, args);
-            wait(exit_process);
+            // wait(exit_process);
         }
         else if(strncmp(args[0], "prodcons_bb", 11) == 0) {
             /* create a process with the function as an entry point. */
@@ -144,7 +144,7 @@ void future_prodcons(int nargs, char *args[]) {
   // (you should not assume that the argument after "s" is always a number)
   if (nargs <= 2){
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
-      signal(exit_process);
+    //   signal(exit_process);
       return;
   }
   int i = 2;
@@ -152,12 +152,12 @@ void future_prodcons(int nargs, char *args[]) {
     // TODO: write your code here to check the validity of arguments
     if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && strcmp(args[i], "0") != 0 && atoi(args[i]) <= 0 ){
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
-      signal(exit_process);
+    //   signal(exit_process);
       return;
     }
     if ((atoi(args[i]) > 0 || strcmp(args[i], "0") == 0) && strcmp(args[i-1], "s") != 0){
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
-      signal(exit_process);
+    //   signal(exit_process);
       return;
     }
     i++;

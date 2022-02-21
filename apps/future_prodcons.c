@@ -2,7 +2,7 @@
 #include <future.h>
 #include <stddef.h>
 #include <future_prodcons.h>
-#include <exit_process.h>
+// #include <exit_process.h>
 
 sid32 print_sem;
 
@@ -16,10 +16,10 @@ uint future_prod(future_t *fut, char *value) {
     wait(print_sem);
     printf("future_set failed\n");
     signal(print_sem);
-    signal(exit_process);
+    // signal(exit_process);
     return -1;
   }
-  signal(exit_process);
+  // signal(exit_process);
   return OK;
 }
 
@@ -31,13 +31,13 @@ uint future_cons(future_t *fut) {
     wait(print_sem);
     printf("future_get failed\n");
     signal(print_sem);
-    signal(exit_process);
+    // signal(exit_process);
     return -1;
   }
   wait(print_sem);
   printf("Consumed %d\n", *i);
   signal(print_sem);
-  signal(exit_process);
+  // signal(exit_process);
   return OK;
 }
 
