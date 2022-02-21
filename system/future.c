@@ -23,8 +23,8 @@ syscall future_free(future_t* f) {
     intmask mask;
     mask = disable();
     kill(f->pid);
-    syscall output = freemem((char*)f, sizeof(future_t));
     restore(mask);
+    syscall output = freemem((char*)f, sizeof(future_t));
     return output;
 }
 
@@ -39,17 +39,19 @@ syscall future_get(future_t* f,  char* out) {
             return SYSERR;
         }
         if (f->state == FUTURE_EMPTY) {
-            f->state = FUTURE_WAITING;
             f->pid = getpid();
-            suspend(f->pid);
-            memcpy(out, f->data, f->size);
+            f->state = FUTURE_WAITING;
+            suspend(getpid());
+            *out = *f->data;
+            restore(mask);
+            return OK;
         }
-        else if (f->state == FUTURE_READY) {
-            memcpy(out, f->data, f->size);
+        if (f->state == FUTURE_READY) {
+            *out = *f->data;
             f->state = FUTURE_EMPTY;
+            restore(mask);
+            return OK;
         }
-        restore(mask);
-        return OK;
     }
 
 }
@@ -61,20 +63,21 @@ syscall future_set(future_t* f, char* in) {
     mask = disable();
     if (f->mode == FUTURE_EXCLUSIVE) {
         if (f->state == FUTURE_EMPTY) {
+            *f->data = *in;
             f->state = FUTURE_READY;
-            f->data = in;
-
+            restore(mask);
+            return OK;
         }
-        else if (f->state == FUTURE_WAITING) {
-            f->data = in;
-            f->state = FUTURE_READY;
+        if (f->state == FUTURE_WAITING) {
+            *f->data = *in;
+            f->state = FUTURE_EMPTY;
             resume(f->pid);
+            restore(mask);
+            return OK;
         }
-        else {
+        if (f->state == FUTURE_READY) {
             restore(mask);
             return SYSERR;
         }
-        restore(mask);
-        return OK;
     }
 }

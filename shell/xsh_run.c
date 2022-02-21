@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include "shprototypes.h"
 #include "prodcons_bb.h"
 #include "exit_process.h"
@@ -151,12 +150,12 @@ void future_prodcons(int nargs, char *args[]) {
   int i = 2;
   while (i < nargs) {
     // TODO: write your code here to check the validity of arguments
-    if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && isNumber(args[i]) != 0){
+    if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && atoi(args[i]) <= 0 ){
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
       signal(exit_process);
       return;
     }
-    if (i > 2 && strcmp(args[i-1], "s") == 0 && isNumber(args[i]) != 0){
+    if (i > 2 && strcmp(args[i-1], "s") == 0 && atoi(args[i]) <= 0){
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
       signal(exit_process);
       return;
@@ -186,21 +185,4 @@ void future_prodcons(int nargs, char *args[]) {
   }
   sleepms(100);
   future_free(f_exclusive);
-}
-
-
-int isNumber(char number[])
-{
-    int i = 0;
-
-    //checking for negative numbers
-    if (number[0] == '-')
-        i = 1;
-    for (; number[i] != 0; i++)
-    {
-        //if (number[i] > '9' || number[i] < '0')
-        if (!isdigit(number[i]))
-            return 1;
-    }
-    return 0;
 }
