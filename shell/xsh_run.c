@@ -155,6 +155,11 @@ void future_prodcons(int nargs, char *args[]) {
     //   signal(exit_process);
       return;
     }
+    if (strcmp(args[i], "s") == 0 && strcmp(args[i+1], "0") != 0 && atoi(args[i+1]) <= 0) {
+      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
+    //   signal(exit_process);
+      return;
+    }
     if ((atoi(args[i]) > 0 || strcmp(args[i], "0") == 0) && strcmp(args[i-1], "s") != 0){
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
     //   signal(exit_process);
