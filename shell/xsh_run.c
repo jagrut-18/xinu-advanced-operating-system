@@ -150,12 +150,12 @@ void future_prodcons(int nargs, char *args[]) {
   int i = 2;
   while (i < nargs) {
     // TODO: write your code here to check the validity of arguments
-    if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && atoi(args[i]) <= 0 ){
+    if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && strcmp(args[i], "0") != 0 && atoi(args[i]) <= 0 ){
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
       signal(exit_process);
       return;
     }
-    if (i > 2 && strcmp(args[i-1], "s") == 0 && atoi(args[i]) <= 0){
+    if (i > 2 && strcmp(args[i-1], "s") == 0 && strcmp(args[i], "0") != 0 && atoi(args[i]) <= 0){
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f]\n");
       signal(exit_process);
       return;
