@@ -21,6 +21,7 @@ typedef struct future_t {
   future_state_t state;
   future_mode_t mode;
   pid32 pid;
+  qid16 get_queue;
 } future_t;
 
 /* Interface for the Futures system calls */

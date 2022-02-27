@@ -6,13 +6,14 @@ future_t* future_alloc(future_mode_t mode, uint size, uint nelem) {
   mask = disable();
   future_t* new_future;
  // TODO: write your code here
-  if (mode == FUTURE_EXCLUSIVE) {
-      new_future = (future_t*) getmem(sizeof(future_t));
-      new_future->state = FUTURE_EMPTY; 
-      new_future->data = (char*) getmem(size);
-      new_future->size = size;
-      new_future->mode = mode;
-  }
+    new_future = (future_t *) getmem(sizeof(future_t));
+    new_future->data = getmem(size * nelem);
+    new_future->state = FUTURE_EMPTY;
+    new_future->size = size;
+    new_future->mode = mode;
+  if (mode == FUTURE_SHARED) {
+        new_future->get_queue = newqueue();
+    }
   restore(mask);
   return new_future;
 }
@@ -22,7 +23,18 @@ future_t* future_alloc(future_mode_t mode, uint size, uint nelem) {
 syscall future_free(future_t* f) {
     intmask mask;
     mask = disable();
-    kill(f->pid);
+    syscall memFreeOutput = freemem(f->data, f->size);
+    if (memFreeOutput == SYSERR) {
+        return SYSERR;
+    }
+    if (f->mode == FUTURE_EXCLUSIVE){
+        kill(f->pid);
+    }
+    if (f->mode == FUTURE_SHARED) {
+        while(nonempty(f->get_queue)){
+            kill(dequeue(f->get_queue));
+        }
+    }
     restore(mask);
     syscall output = freemem((char*)f, sizeof(future_t));
     return output;
@@ -42,16 +54,44 @@ syscall future_get(future_t* f,  char* out) {
             f->pid = getpid();
             f->state = FUTURE_WAITING;
             suspend(getpid());
-            *out = *f->data;
+            memcpy(out, f->data, f->size);
             restore(mask);
             return OK;
         }
         if (f->state == FUTURE_READY) {
-            *out = *f->data;
+            memcpy(out, f->data, f->size);
             f->state = FUTURE_EMPTY;
             restore(mask);
             return OK;
         }
+    }
+
+    if (f->mode == FUTURE_SHARED) {
+        intmask mask;
+        mask = disable();
+        if (f->state == FUTURE_EMPTY){
+            enqueue(getpid(), f->get_queue);
+            f->state = FUTURE_WAITING;
+            suspend(getpid());
+            memcpy(out, f->data, f->size);
+            restore(mask);
+            return OK;
+        }
+        if (f->state == FUTURE_WAITING) {
+            enqueue(getpid(), f->get_queue);
+            suspend(getpid());
+            memcpy(out, f->data, f->size);
+            restore(mask);
+            return OK;
+        }
+        if (f->state == FUTURE_READY) {
+            memcpy(out, f->data, f->size);
+            restore(mask);
+            return OK;
+        }
+
+        restore(mask);
+        return SYSERR;
     }
 
 }
@@ -61,17 +101,9 @@ syscall future_get(future_t* f,  char* out) {
 syscall future_set(future_t* f, char* in) {
     intmask mask;
     mask = disable();
-    if (f->mode == FUTURE_EXCLUSIVE) {
         if (f->state == FUTURE_EMPTY) {
-            *f->data = *in;
+            memcpy(f->data, in, f->size);
             f->state = FUTURE_READY;
-            restore(mask);
-            return OK;
-        }
-        if (f->state == FUTURE_WAITING) {
-            *f->data = *in;
-            f->state = FUTURE_EMPTY;
-            resume(f->pid);
             restore(mask);
             return OK;
         }
@@ -79,5 +111,25 @@ syscall future_set(future_t* f, char* in) {
             restore(mask);
             return SYSERR;
         }
+    if (f->mode == FUTURE_EXCLUSIVE) {
+        if (f->state == FUTURE_WAITING) {
+            memcpy(f->data, in, f->size);
+            f->state = FUTURE_EMPTY;
+            resume(f->pid);
+            restore(mask);
+            return OK;
+        }
     }
+    if (f->mode == FUTURE_SHARED) {
+        if (f->state == FUTURE_WAITING){
+            memcpy(f->data, in, f->size);
+            f->state = FUTURE_EMPTY;
+            while(nonempty(f->get_queue)){
+                resume(dequeue(f->get_queue));
+            }
+            restore(mask);
+            return OK;
+        }
+    }
+    
 }
