@@ -18,13 +18,14 @@
  *------------------------------------------------------------------------
  */
 
-char functions[6][100] = { 
+char functions[7][100] = { 
                             "futest",
                             "hello",
                             "list",
                             "prodcons",
                             "prodcons_bb",
                             "tscdf",
+                            "tscdf_fq",
                         };
 
 void printFunctions();
@@ -34,7 +35,8 @@ void b_test();
 int isNumber(char n[]);
 int future_fib(int nargs, char *args[]);
 int future_free_test(int nargs, char *args[]);
-extern int stream_proc(int nargs, char *args[]);
+// int stream_proc(int nargs, char *args[]);
+int stream_proc_futures(int nargs, char *args[]);
 
 
 shellcmd xsh_run(int nargs, char *args[]) {
@@ -84,9 +86,13 @@ shellcmd xsh_run(int nargs, char *args[]) {
             resume (create((void *) xsh_prodcons, 4096, 20, "prodcons", 2, nargs, args));
             wait(exit_process);
         }
-        else if(strncmp(args[0], "tscdf", 5) == 0) {
-            resume (create(stream_proc, 4096, 20, "stream_proc", 2, nargs, args));
+        else if(strncmp(args[0], "tscdf_fq", 8) == 0) {
+            resume (create(stream_proc_futures, 4096, 20, "stream_proc_futures", 2, nargs, args));
             wait(exit_process);
+        }
+        else if(strncmp(args[0], "tscdf", 5) == 0) {
+            // resume (create(stream_proc, 4096, 20, "stream_proc", 2, nargs, args));
+            // wait(exit_process);
         }
         else {
             printFunctions();
@@ -97,7 +103,7 @@ shellcmd xsh_run(int nargs, char *args[]) {
 }
 
 void printFunctions() {
-    for (int i = 0; i < 6; i++){
+    for (int i = 0; i < 7; i++){
         printf("%s\n", functions[i]);
     }
 }
@@ -153,12 +159,12 @@ void future_prodcons(int nargs, char *args[]) {
   // First, try to iterate through the arguments and make sure they are all valid based on the requirements
   // (you should not assume that the argument after "s" is always a number)
   if (nargs < 2){
-      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f NUMBER][--free]\n");
+      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
     //   signal(exit_process);
       return;
   }
-  if (strcmp(args[1], "-pc") != 0 && strcmp(args[1], "-f") != 0 && strcmp(args[1], "--free") != 0){
-      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f NUMBER][--free]\n");
+  if (strcmp(args[1], "-pc") != 0 && strcmp(args[1], "-f") != 0 && strcmp(args[1], "--free") != 0 && strcmp(args[1], "-pcq") != 0){
+      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
     //   signal(exit_process);
       return;
   }
@@ -168,19 +174,19 @@ void future_prodcons(int nargs, char *args[]) {
       // TODO: write your code here to check the validity of arguments
       // if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && strcmp(args[i], "0") != 0 && atoi(args[i]) <= 0 ){
       if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && isNumber(args[i]) != 0 ){
-        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f NUMBER][--free]\n");
+        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
       //   signal(exit_process);
         return;
       }
       // if (strcmp(args[i], "s") == 0 && strcmp(args[i+1], "0") != 0 && atoi(args[i+1]) <= 0) {
       if (strcmp(args[i], "s") == 0 && isNumber(args[i+1]) != 0) {
-        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f NUMBER][--free]\n");
+        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
       //   signal(exit_process);
         return;
       }
       // if ((atoi(args[i]) > 0 || strcmp(args[i], "0") == 0) && strcmp(args[i-1], "s") != 0){
       if (isNumber(args[i]) == 0 && strcmp(args[i-1], "s") != 0){
-        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f NUMBER][--free]\n");
+        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
       //   signal(exit_process);
         return;
       }
@@ -189,16 +195,23 @@ void future_prodcons(int nargs, char *args[]) {
   }
   else if(strcmp(args[1], "-f") == 0) {
     if (isNumber(args[2]) != 0) {
-      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f NUMBER][--free]\n");
+      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
       //   signal(exit_process);
       return;
     }
     future_fib(nargs, args);
     return;
   }
+  else if(strcmp(args[1], "-pcq") == 0) {
+    if (nargs <= 2) {
+      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
+      //   signal(exit_process);
+        return;
+    }
+  }
   else {
     if (nargs != 2){
-        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f NUMBER][--free]\n");
+        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
       //   signal(exit_process);
         return;
     }
@@ -208,7 +221,7 @@ void future_prodcons(int nargs, char *args[]) {
 
   print_sem = semcreate(1);
   future_t* f_exclusive;
-  f_exclusive = future_alloc(FUTURE_EXCLUSIVE, sizeof(int), 1);
+  f_exclusive = future_alloc(strcmp(args[1], "-pcq") == 0 ? FUTURE_QUEUE : FUTURE_EXCLUSIVE, sizeof(int), 1);
   char *val;
 
   int num_args = i;  // keeping number of args to create the array

@@ -13,3 +13,5 @@ struct stream {
   int32 tail;
   struct data_element** queue;
 };
+
+#include <future.h>

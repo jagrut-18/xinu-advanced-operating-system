@@ -50,7 +50,7 @@ int future_fib(int nargs, char *args[]) {
   int fib = -1, i;
 
   if (nargs != 3) {
-    printf("Syntax: run futest [-pc [g ...] [s VALUE ...]|-f NUMBER][--free]\n");
+    printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
     return(SYSERR);
   }
 
