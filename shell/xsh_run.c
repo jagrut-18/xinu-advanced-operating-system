@@ -202,10 +202,33 @@ void future_prodcons(int nargs, char *args[]) {
     return;
   }
   else if(strcmp(args[1], "-pcq") == 0) {
-    if (nargs <= 2) {
+    if (nargs <= 3) {
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
       //   signal(exit_process);
         return;
+    }
+    int i = 3; 
+    while (i < nargs) {
+      // TODO: write your code here to check the validity of arguments
+      // if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && strcmp(args[i], "0") != 0 && atoi(args[i]) <= 0 ){
+      if (strcmp(args[i], "g") != 0 && strcmp(args[i], "s") != 0 && isNumber(args[i]) != 0 ){
+        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
+      //   signal(exit_process);
+        return;
+      }
+      // if (strcmp(args[i], "s") == 0 && strcmp(args[i+1], "0") != 0 && atoi(args[i+1]) <= 0) {
+      if (strcmp(args[i], "s") == 0 && isNumber(args[i+1]) != 0) {
+        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
+      //   signal(exit_process);
+        return;
+      }
+      // if ((atoi(args[i]) > 0 || strcmp(args[i], "0") == 0) && strcmp(args[i-1], "s") != 0){
+      if (isNumber(args[i]) == 0 && strcmp(args[i-1], "s") != 0){
+        printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
+      //   signal(exit_process);
+        return;
+      }
+      i++;
     }
   }
   else {
