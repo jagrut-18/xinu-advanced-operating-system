@@ -221,6 +221,16 @@ void future_prodcons(int nargs, char *args[]) {
   print_sem = semcreate(1);
   future_t* f_exclusive;
   f_exclusive = future_alloc(strcmp(args[1], "-pcq") == 0 ? FUTURE_QUEUE : FUTURE_EXCLUSIVE, sizeof(int), 1);
+  if(strcmp(args[1], "-pcq") == 0) {
+    if (isNumber(args[2]) != 0) {
+      printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
+      //   signal(exit_process);
+        return;
+    }
+		f_exclusive = future_alloc(FUTURE_QUEUE, sizeof(int), atoi(args[2]));
+	} else {
+		f_exclusive = future_alloc(FUTURE_EXCLUSIVE, sizeof(int), 1);
+	}
   char *val;
 
   int num_args = i;  // keeping number of args to create the array
