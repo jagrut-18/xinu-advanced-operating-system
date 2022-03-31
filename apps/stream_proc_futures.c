@@ -1,7 +1,7 @@
 #include <xinu.h>
 #include <stream.h>
 #include <exit_process.h>
-#include "tscdf_input.h"
+#include "tscdf.h"
 
 uint port;
 int num_streams, work_queue_depth, time_window, output_time;
@@ -79,7 +79,7 @@ int stream_proc_futures(int nargs, char *args[])
     }
 
     // TODO: Parse input header file data and populate work queue
-    for (int i = 0; i < number_inputs; i++)
+    for (int i = 0; i < n_input; i++)
     {
         char *a = (char *)stream_input[i];
         int st = atoi(a);

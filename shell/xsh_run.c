@@ -12,6 +12,7 @@
 #include "exit_process.h"
 #include "future.h"
 #include "future_prodcons.h"
+#include <stream.h>
 
 /*------------------------------------------------------------------------
  * xsh_run - A wrapper shell that runs internal functions
@@ -35,8 +36,6 @@ void b_test();
 int isNumber(char n[]);
 int future_fib(int nargs, char *args[]);
 int future_free_test(int nargs, char *args[]);
-// int stream_proc(int nargs, char *args[]);
-int stream_proc_futures(int nargs, char *args[]);
 
 
 shellcmd xsh_run(int nargs, char *args[]) {
@@ -91,8 +90,8 @@ shellcmd xsh_run(int nargs, char *args[]) {
             wait(exit_process);
         }
         else if(strncmp(args[0], "tscdf", 5) == 0) {
-            // resume (create(stream_proc, 4096, 20, "stream_proc", 2, nargs, args));
-            // wait(exit_process);
+            resume (create(stream_proc, 4096, 20, "stream_proc", 2, nargs, args));
+            wait(exit_process);
         }
         else {
             printFunctions();

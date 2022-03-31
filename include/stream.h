@@ -1,4 +1,5 @@
 #include <xinu.h>
+#include <future.h>
 
 typedef struct data_element {
   int32 time;
@@ -14,4 +15,5 @@ struct stream {
   struct data_element** queue;
 };
 
-#include <future.h>
+extern int stream_proc(int nargs, char *args[]);
+extern int stream_proc_futures(int nargs, char *args[]);
