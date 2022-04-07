@@ -13,13 +13,15 @@
 #include "future.h"
 #include "future_prodcons.h"
 #include <stream.h>
+#include <fs.h>
 
 /*------------------------------------------------------------------------
  * xsh_run - A wrapper shell that runs internal functions
  *------------------------------------------------------------------------
  */
 
-char functions[7][100] = { 
+char functions[8][100] = { 
+                            "fstest",
                             "futest",
                             "hello",
                             "list",
@@ -36,6 +38,7 @@ void b_test();
 int isNumber(char n[]);
 int future_fib(int nargs, char *args[]);
 int future_free_test(int nargs, char *args[]);
+uint fstest(int nargs, char *args[]);
 
 
 shellcmd xsh_run(int nargs, char *args[]) {
@@ -93,6 +96,9 @@ shellcmd xsh_run(int nargs, char *args[]) {
             resume (create(stream_proc, 4096, 20, "stream_proc", 2, nargs, args));
             wait(exit_process);
         }
+        else if(strncmp(args[0], "fstest", 6) == 0) {
+            fstest(nargs, args);
+        }
         else {
             printFunctions();
             return OK;
@@ -102,7 +108,7 @@ shellcmd xsh_run(int nargs, char *args[]) {
 }
 
 void printFunctions() {
-    for (int i = 0; i < 7; i++){
+    for (int i = 0; i < 8; i++){
         printf("%s\n", functions[i]);
     }
 }
@@ -243,7 +249,7 @@ void future_prodcons(int nargs, char *args[]) {
 
   print_sem = semcreate(1);
   future_t* f_exclusive;
-  f_exclusive = future_alloc(strcmp(args[1], "-pcq") == 0 ? FUTURE_QUEUE : FUTURE_EXCLUSIVE, sizeof(int), 1);
+  // f_exclusive = future_alloc(strcmp(args[1], "-pcq") == 0 ? FUTURE_QUEUE : FUTURE_EXCLUSIVE, sizeof(int), 1);
   if(strcmp(args[1], "-pcq") == 0) {
     if (isNumber(args[2]) != 0) {
       printf("Syntax: run futest [-pc [g ...] [s VALUE ...]] | [-pcq LENGTH [g ...] [s VALUE ...]] | [-f NUMBER] | [--free]\n");
