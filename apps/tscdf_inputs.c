@@ -1,3 +1,3 @@
-#include "tscdf_input.h"
+// #include "tscdf_input.h"
 
-int n_input = number_inputs;
+// int n_input = number_inputs;

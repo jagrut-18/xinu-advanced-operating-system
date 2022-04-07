@@ -88,14 +88,14 @@ shellcmd xsh_run(int nargs, char *args[]) {
             resume (create((void *) xsh_prodcons, 4096, 20, "prodcons", 2, nargs, args));
             wait(exit_process);
         }
-        else if(strncmp(args[0], "tscdf_fq", 8) == 0) {
-            resume (create(stream_proc_futures, 4096, 20, "stream_proc_futures", 2, nargs, args));
-            wait(exit_process);
-        }
-        else if(strncmp(args[0], "tscdf", 5) == 0) {
-            resume (create(stream_proc, 4096, 20, "stream_proc", 2, nargs, args));
-            wait(exit_process);
-        }
+        // else if(strncmp(args[0], "tscdf_fq", 8) == 0) {
+        //     resume (create(stream_proc_futures, 4096, 20, "stream_proc_futures", 2, nargs, args));
+        //     wait(exit_process);
+        // }
+        // else if(strncmp(args[0], "tscdf", 5) == 0) {
+        //     resume (create(stream_proc, 4096, 20, "stream_proc", 2, nargs, args));
+        //     wait(exit_process);
+        // }
         else if(strncmp(args[0], "fstest", 6) == 0) {
             fstest(nargs, args);
         }
