@@ -359,81 +359,69 @@ void fs_printfreemask(void)
  * TODO: implement the functions below
  */
 
-int fs_open(char *filename, int flags)
-{
-    if (flags != O_RDONLY && flags != O_WRONLY && flags != O_RDWR)
-    {
+int fs_open(char *filename, int flags) {
+    if (flags != O_RDONLY && flags != O_WRONLY && flags != O_RDWR){
         return SYSERR;
     }
+    int i;
     struct inode node;
-    if (fsd.root_dir.numentries <= 0)
-    {
+    if (fsd.root_dir.numentries <= 0){
         return SYSERR;
     }
-    for (int i = 0; i < fsd.root_dir.numentries; i++)
-    {
-        filetable_t open_file = oft[i];
-        if (open_file.state != FSTATE_OPEN && strcmp(fsd.root_dir.entry[i].name, filename) == 0)
-        {
-            int inode_num = fsd.root_dir.entry[i].inode_num;
 
+    for (i = 0; i < fsd.root_dir.numentries; i++){
+        if (oft[i].state != FSTATE_OPEN && strcmp(fsd.root_dir.entry[i].name, filename) == 0){
+            int inode_num = fsd.root_dir.entry[i].inode_num;
             _fs_get_inode_by_num(0, inode_num, &node);
-            open_file.state = FSTATE_OPEN;
-            open_file.fileptr = 0;
-            open_file.in = node;
-            open_file.de = &fsd.root_dir.entry[i];
-            open_file.flag = flags;
-            _fs_put_inode_by_num(0, inode_num, &open_file.in);
+
+            oft[i].state = FSTATE_OPEN;
+            oft[i].fileptr = 0;
+            oft[i].in = node;
+            oft[i].de = &fsd.root_dir.entry[i];
+            oft[i].flag = flags;
+
+            _fs_put_inode_by_num(0, inode_num, &oft[i].in);
             return i;
         }
     }
-    return SYSERR;
+  return SYSERR;
 }
 
-int fs_close(int fd)
-{
-    if (fd < 0 || fd >= NUM_FD)
-    {
+int fs_close(int fd) {
+    if (oft[fd].state == FSTATE_CLOSED){
         return SYSERR;
     }
-    filetable_t curr_file = oft[fd];
-
-    if (curr_file.state == FSTATE_CLOSED)
-    {
+    else if (fd < 0 || fd >= NUM_FD){
         return SYSERR;
     }
-    curr_file.state = FSTATE_CLOSED;
-    curr_file.fileptr = 0;
+    oft[fd].state = FSTATE_CLOSED;
+    oft[fd].fileptr = 0;
     return OK;
 }
 
-int fs_create(char *filename, int mode)
-{
-    if (mode != O_CREAT || fsd.root_dir.numentries > DIRECTORY_SIZE)
-    {
-        return SYSERR;
+int fs_create(char *filename, int mode) {
+    for (int i = 0; i < fsd.root_dir.numentries; i++){
+        if (strcmp(filename, fsd.root_dir.entry[i].name) == 0){
+          return SYSERR;
+          }
     }
-    for (int i = 0; i < fsd.root_dir.numentries; i++)
-    {
-        if (strcmp(filename, fsd.root_dir.entry[i].name) == 0)
-        {
-            return SYSERR;
-        }
-    }
-    struct inode in;
-    _fs_get_inode_by_num(0, fsd.inodes_used, &in);
-    in.id = fsd.inodes_used;
-    in.type = INODE_TYPE_FILE;
-    in.device = 0;
-    in.size = 0;
-    in.nlink = 1;
-    fsd.inodes_used++;
+    if (mode == O_CREAT && fsd.root_dir.numentries < DIRECTORY_SIZE){
+        struct inode in;
+        int resp1 = _fs_get_inode_by_num(0, fsd.inodes_used, &in);
+        in.id = fsd.inodes_used;
+        in.type = INODE_TYPE_FILE;
+        in.device = 0;
+        in.size = 0;
+        in.nlink=1;
+        fsd.inodes_used++;
 
-    _fs_put_inode_by_num(0, in.id, &in);
-    strcpy(fsd.root_dir.entry[fsd.root_dir.numentries].name, filename);
-    fsd.root_dir.entry[fsd.root_dir.numentries].inode_num = in.id;
-    fsd.root_dir.numentries++;
-    return fs_open(filename, O_RDWR);
+        int resp2 = _fs_put_inode_by_num(0, in.id, &in);
+        strcpy(fsd.root_dir.entry[fsd.root_dir.numentries].name, filename);
+        fsd.root_dir.entry[fsd.root_dir.numentries].inode_num = in.id;
+        fsd.root_dir.numentries++;
+        return fs_open(filename, O_RDWR);
+    }
+    return SYSERR;
 }
 
 int fs_seek(int fd, int offset)
