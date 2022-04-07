@@ -368,8 +368,7 @@ int fs_open(char *filename, int flags)
     if (fsd.root_dir.numentries <= 0){
         return SYSERR;
     }
-
-    filetable_t open_file = oft[i];
+    filetable_t open_file = oft[0];
     for (int i = 0; i < fsd.root_dir.numentries; i++){
         if (open_file.state != FSTATE_OPEN && strcmp(fsd.root_dir.entry[i].name, filename) == 0){
             int inode_num = fsd.root_dir.entry[i].inode_num;
