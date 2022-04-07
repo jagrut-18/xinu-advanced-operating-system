@@ -38,7 +38,7 @@ void b_test();
 int isNumber(char n[]);
 int future_fib(int nargs, char *args[]);
 int future_free_test(int nargs, char *args[]);
-uint fstest(int nargs, char *args[]);
+int fstest(int nargs, char *args[]);
 
 
 shellcmd xsh_run(int nargs, char *args[]) {
