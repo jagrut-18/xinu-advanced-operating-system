@@ -361,16 +361,20 @@ void fs_printfreemask(void)
 
 int fs_open(char *filename, int flags)
 {
-    if (flags != O_RDONLY && flags != O_WRONLY && flags != O_RDWR){
+    if (flags != O_RDONLY && flags != O_WRONLY && flags != O_RDWR)
+    {
         return SYSERR;
     }
     struct inode node;
-    if (fsd.root_dir.numentries <= 0){
+    if (fsd.root_dir.numentries <= 0)
+    {
         return SYSERR;
     }
-    filetable_t open_file = oft[0];
-    for (int i = 0; i < fsd.root_dir.numentries; i++){
-        if (open_file.state != FSTATE_OPEN && strcmp(fsd.root_dir.entry[i].name, filename) == 0){
+    for (int i = 0; i < fsd.root_dir.numentries; i++)
+    {
+        filetable_t open_file = oft[i];
+        if (open_file.state != FSTATE_OPEN && strcmp(fsd.root_dir.entry[i].name, filename) == 0)
+        {
             int inode_num = fsd.root_dir.entry[i].inode_num;
 
             _fs_get_inode_by_num(0, inode_num, &node);
@@ -383,17 +387,19 @@ int fs_open(char *filename, int flags)
             return i;
         }
     }
-  return SYSERR;
+    return SYSERR;
 }
 
 int fs_close(int fd)
 {
-    if (fd < 0 || fd >= NUM_FD){
+    if (fd < 0 || fd >= NUM_FD)
+    {
         return SYSERR;
     }
     filetable_t curr_file = oft[fd];
 
-    if (curr_file.state == FSTATE_CLOSED){
+    if (curr_file.state == FSTATE_CLOSED)
+    {
         return SYSERR;
     }
     curr_file.state = FSTATE_CLOSED;
@@ -403,28 +409,31 @@ int fs_close(int fd)
 
 int fs_create(char *filename, int mode)
 {
-    if (mode != O_CREAT || fsd.root_dir.numentries > DIRECTORY_SIZE) {
+    if (mode != O_CREAT || fsd.root_dir.numentries > DIRECTORY_SIZE)
+    {
         return SYSERR;
     }
-    for (int i = 0; i < fsd.root_dir.numentries; i++){
-        if (strcmp(filename, fsd.root_dir.entry[i].name) == 0){
-          return SYSERR;
-          }
+    for (int i = 0; i < fsd.root_dir.numentries; i++)
+    {
+        if (strcmp(filename, fsd.root_dir.entry[i].name) == 0)
+        {
+            return SYSERR;
+        }
     }
-        struct inode in;
-        _fs_get_inode_by_num(0, fsd.inodes_used, &in);
-        in.id = fsd.inodes_used;
-        in.type = INODE_TYPE_FILE;
-        in.device = 0;
-        in.size = 0;
-        in.nlink=1;
-        fsd.inodes_used++;
+    struct inode in;
+    _fs_get_inode_by_num(0, fsd.inodes_used, &in);
+    in.id = fsd.inodes_used;
+    in.type = INODE_TYPE_FILE;
+    in.device = 0;
+    in.size = 0;
+    in.nlink = 1;
+    fsd.inodes_used++;
 
-        _fs_put_inode_by_num(0, in.id, &in);
-        strcpy(fsd.root_dir.entry[fsd.root_dir.numentries].name, filename);
-        fsd.root_dir.entry[fsd.root_dir.numentries].inode_num = in.id;
-        fsd.root_dir.numentries++;
-        return fs_open(filename, O_RDWR);
+    _fs_put_inode_by_num(0, in.id, &in);
+    strcpy(fsd.root_dir.entry[fsd.root_dir.numentries].name, filename);
+    fsd.root_dir.entry[fsd.root_dir.numentries].inode_num = in.id;
+    fsd.root_dir.numentries++;
+    return fs_open(filename, O_RDWR);
 }
 
 int fs_seek(int fd, int offset)
