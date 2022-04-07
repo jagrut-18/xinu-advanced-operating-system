@@ -412,7 +412,7 @@ int fs_create(char *filename, int mode)
           }
     }
         struct inode in;
-        int resp1 = _fs_get_inode_by_num(0, fsd.inodes_used, &in);
+        _fs_get_inode_by_num(0, fsd.inodes_used, &in);
         in.id = fsd.inodes_used;
         in.type = INODE_TYPE_FILE;
         in.device = 0;
@@ -420,7 +420,7 @@ int fs_create(char *filename, int mode)
         in.nlink=1;
         fsd.inodes_used++;
 
-        int resp2 = _fs_put_inode_by_num(0, in.id, &in);
+        _fs_put_inode_by_num(0, in.id, &in);
         strcpy(fsd.root_dir.entry[fsd.root_dir.numentries].name, filename);
         fsd.root_dir.entry[fsd.root_dir.numentries].inode_num = in.id;
         fsd.root_dir.numentries++;
