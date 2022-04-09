@@ -426,18 +426,107 @@ int fs_create(char *filename, int mode) {
 
 int fs_seek(int fd, int offset)
 {
-    return SYSERR;
+    if (offset > oft[fd].in.size) {
+        return SYSERR;
+    }
+    
+    oft[fd].fileptr += offset;
+    return OK;
 }
 
 int fs_read(int fd, void *buf, int nbytes)
 {
-    return SYSERR;
+
+    if (oft[fd].state == FSTATE_CLOSED || nbytes == 0 || fd < 0 || fd > NUM_FD )
+    {
+        return SYSERR;
+    }
+
+    struct inode in = oft[fd].in;
+    int first_block_to_read = oft[fd].fileptr / fsd.blocksz;
+    int offset = (oft[fd].fileptr % fsd.blocksz);
+    int total_bytes = nbytes;
+
+    if ( first_block_to_read < INODEBLOCKS ){
+        
+        int bytes_to_read = fsd.blocksz - offset;
+
+        while ( nbytes > 0)
+        {
+            if ( bytes_to_read <= nbytes )
+            {
+                if ( first_block_to_read == INODEBLOCKS - 1)
+                {
+                    return total_bytes - nbytes;
+                }
+
+                bs_bread(0, in.blocks[first_block_to_read] , offset , buf , bytes_to_read);
+                oft[fd].fileptr += bytes_to_read;
+                buf += bytes_to_read;
+                nbytes = nbytes - bytes_to_read;
+                memcpy( oft + fd , &oft[fd] , sizeof( struct filetable ) );
+                offset = 0;
+            }
+            else if (bytes_to_read > nbytes)
+            {
+                bs_bread(0, in.blocks[ ++first_block_to_read], offset, buf, nbytes);
+                buf += nbytes;
+                oft[fd].fileptr += nbytes;
+                nbytes = 0;
+                return total_bytes;
+            }
+        }
+    }
+    return total_bytes - nbytes;
 }
 
 int fs_write(int fd, void *buf, int nbytes)
 {
+  if(fd > NUM_FD || fd < 0 || oft[fd].state != FSTATE_OPEN || oft[fd].flag == O_RDONLY || strlen(oft[fd].de->name) == 0){
     return SYSERR;
+  }
+
+  int inode_id = oft[fd].in.id;
+  struct inode* in = (struct inode*)getmem(sizeof(struct inode));
+  _fs_get_inode_by_num(0, oft[fd].de->inode_num, in);
+  char* buf_block = getmem(fsd.blocksz);
+ 
+  int blocks = nbytes / MDEV_BLOCK_SIZE;
+  if((nbytes % MDEV_BLOCK_SIZE) != 0) {
+    blocks++;
+  }
+
+  int i,j;
+
+  for (i = 0;i < blocks; i++) {
+    void* offset = buf + i * MDEV_BLOCK_SIZE;
+    for(j = NUM_INODE_BLOCKS + FIRST_INODE_BLOCK; j < MDEV_NUM_BLOCKS; j++) {
+      if(fs_getmaskbit(j) == 0) {
+
+        fs_setmaskbit(j);
+
+        if(i == blocks-1) {
+          memcpy((void*)buf_block, offset, (nbytes % MDEV_BLOCK_SIZE));
+          bs_bwrite(0, j, 0, (void*)buf_block, fsd.blocksz);
+          in->blocks[i] = j;
+        }
+        else{
+          memcpy((void*)buf_block, offset, MDEV_BLOCK_SIZE);
+          bs_bwrite(0, j, 0, buf_block, fsd.blocksz);  
+          in->blocks[i] = j;
+        }
+        break;
+      }
+    }
+  }
+
+  _fs_put_inode_by_num(0, inode_id , in);
+  oft[fd].in = *in;
+  oft[fd].fileptr += nbytes;
+
+  return nbytes;
 }
+
 
 int fs_link(char *src_filename, char *dst_filename)
 {
