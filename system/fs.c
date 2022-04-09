@@ -437,47 +437,31 @@ int fs_seek(int fd, int offset)
 int fs_read(int fd, void *buf, int nbytes)
 {
 
-    if (oft[fd].state == FSTATE_CLOSED || nbytes == 0 || fd < 0 || fd > NUM_FD )
-    {
-        return SYSERR;
-    }
+    int block_to_read, l, h, bytes, output_bytes;
+	while (nbytes > 0) {
+		block_to_read = oft[fd].fileptr / fsd.blocksz;
 
-    struct inode in = oft[fd].in;
-    int first_block_to_read = oft[fd].fileptr / fsd.blocksz;
-    int offset = (oft[fd].fileptr % fsd.blocksz);
-    int total_bytes = nbytes;
+		if(block_to_read >= oft[fd].in.nlink) {
+			return SYSERR;
+		}
 
-    if ( first_block_to_read < INODEBLOCKS ){
-        
-        int bytes_to_read = fsd.blocksz - offset;
+		l = oft[fd].fileptr % fsd.blocksz;
+		h = l + nbytes;
 
-        while ( nbytes > 0)
-        {
-            if ( bytes_to_read <= nbytes )
-            {
-                if ( first_block_to_read == INODEBLOCKS - 1)
-                {
-                    return total_bytes - nbytes;
-                }
+		if (h > fsd.blocksz){
+			h = fsd.blocksz;
+		}
 
-                bs_bread(0, in.blocks[first_block_to_read] , offset , buf , bytes_to_read);
-                oft[fd].fileptr += bytes_to_read;
-                buf += bytes_to_read;
-                nbytes = nbytes - bytes_to_read;
-                memcpy( oft + fd , &oft[fd] , sizeof( struct filetable ) );
-                offset = 0;
-            }
-            else if (bytes_to_read > nbytes)
-            {
-                bs_bread(0, in.blocks[ ++first_block_to_read], offset, buf, nbytes);
-                buf += nbytes;
-                oft[fd].fileptr += nbytes;
-                nbytes = 0;
-                return total_bytes;
-            }
-        }
-    }
-    return total_bytes - nbytes;
+		bytes = h - l;
+
+
+		bs_bread(dev0, oft[fd].in.blocks[block_to_read], l, buf + output_bytes, bytes);
+
+		oft[fd].fileptr += bytes;
+		nbytes -= bytes;
+		output_bytes += bytes;
+	}
+	return output_bytes;
 }
 
 int fs_write(int fd, void *buf, int nbytes)
