@@ -364,7 +364,7 @@ int fs_open(char *filename, int flags) {
         return SYSERR;
     }
     int i;
-    struct inode node;
+    struct inode i_node;
     if (fsd.root_dir.numentries <= 0){
         return SYSERR;
     }
@@ -372,11 +372,11 @@ int fs_open(char *filename, int flags) {
     for (i = 0; i < fsd.root_dir.numentries; i++){
         if (oft[i].state != FSTATE_OPEN && strcmp(fsd.root_dir.entry[i].name, filename) == 0){
             int inode_num = fsd.root_dir.entry[i].inode_num;
-            _fs_get_inode_by_num(0, inode_num, &node);
+            _fs_get_inode_by_num(0, inode_num, &i_node);
 
             oft[i].state = FSTATE_OPEN;
             oft[i].fileptr = 0;
-            oft[i].in = node;
+            oft[i].in = i_node;
             oft[i].de = &fsd.root_dir.entry[i];
             oft[i].flag = flags;
 
@@ -426,89 +426,93 @@ int fs_create(char *filename, int mode) {
 
 int fs_seek(int fd, int offset)
 {
-    if (offset > oft[fd].in.size) {
+    if (oft[fd].state == FSTATE_CLOSED || fd > NUM_FD || fd < -1) {
         return SYSERR;
     }
-    
     oft[fd].fileptr += offset;
     return OK;
 }
 
 int fs_read(int fd, void *buf, int nbytes)
 {
+    if (fd > NUM_FD || fd < -1 || oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_WRONLY) {
+        return SYSERR;
+    }
+			 struct inode i_node;
+			_fs_get_inode_by_num(dev0, oft[fd].de->inode_num, &i_node);
+			
+			int left = oft[fd].fileptr; 
+			int right = oft[fd].fileptr + nbytes;
+			if (right > oft[fd].in.size){
+				nbytes = i_node.size - oft[fd].fileptr;
+				right = i_node.size;
+			}
+			int leftblock = left / fsd.blocksz;
+			int rightblock = right / fsd.blocksz;
+			
+			if(right % fsd.blocksz != 0){
+				rightblock += 1;
+			}
+			
+  			int offset = left % fsd.blocksz;
+ 			int size = fsd.blocksz - offset;
+  			char *buffer = (char *)buf;		
+			for (int i = leftblock; i < rightblock; i++) {
+				if(bs_bread(dev0, i_node.blocks[i], offset, buffer, size) == SYSERR){
+					return SYSERR;
+				}
+				offset = 0;
+				size = fsd.blocksz - offset;				
+				buffer = buffer + size;				
+			}
+			oft[fd].fileptr = right;
+			_fs_put_inode_by_num(dev0, oft[fd].de->inode_num, &i_node);
 
-    int block_to_read, l, h, bytes, output_bytes;
-	while (nbytes > 0) {
-		block_to_read = oft[fd].fileptr / fsd.blocksz;
-
-		if(block_to_read >= oft[fd].in.nlink) {
-			return SYSERR;
-		}
-
-		l = oft[fd].fileptr % fsd.blocksz;
-		h = l + nbytes;
-
-		if (h > fsd.blocksz){
-			h = fsd.blocksz;
-		}
-
-		bytes = h - l;
-
-
-		bs_bread(dev0, oft[fd].in.blocks[block_to_read], l, buf + output_bytes, bytes);
-
-		oft[fd].fileptr += bytes;
-		nbytes -= bytes;
-		output_bytes += bytes;
-	}
-	return output_bytes;
+			return right;
 }
 
 int fs_write(int fd, void *buf, int nbytes)
 {
-  if(fd > NUM_FD || fd < 0 || oft[fd].state != FSTATE_OPEN || oft[fd].flag == O_RDONLY || strlen(oft[fd].de->name) == 0){
-    return SYSERR;
-  }
+  if (oft[fd].state != FSTATE_OPEN || oft[fd].flag == O_RDONLY) {
+    		return SYSERR;
+	}
+		struct inode i_node;
+		_fs_get_inode_by_num(dev0, oft[fd].de->inode_num, &i_node);
 
-  int inode_id = oft[fd].in.id;
-  struct inode* in = (struct inode*)getmem(sizeof(struct inode));
-  _fs_get_inode_by_num(0, oft[fd].de->inode_num, in);
-  char* buf_block = getmem(fsd.blocksz);
- 
-  int blocks = nbytes / MDEV_BLOCK_SIZE;
-  if((nbytes % MDEV_BLOCK_SIZE) != 0) {
-    blocks++;
-  }
-
-  int i,j;
-
-  for (i = 0;i < blocks; i++) {
-    void* offset = buf + i * MDEV_BLOCK_SIZE;
-    for(j = NUM_INODE_BLOCKS + FIRST_INODE_BLOCK; j < MDEV_NUM_BLOCKS; j++) {
-      if(fs_getmaskbit(j) == 0) {
-
-        fs_setmaskbit(j);
-
-        if(i == blocks-1) {
-          memcpy((void*)buf_block, offset, (nbytes % MDEV_BLOCK_SIZE));
-          bs_bwrite(0, j, 0, (void*)buf_block, fsd.blocksz);
-          in->blocks[i] = j;
-        }
-        else{
-          memcpy((void*)buf_block, offset, MDEV_BLOCK_SIZE);
-          bs_bwrite(0, j, 0, buf_block, fsd.blocksz);  
-          in->blocks[i] = j;
-        }
-        break;
-      }
-    }
-  }
-
-  _fs_put_inode_by_num(0, inode_id , in);
-  oft[fd].in = *in;
-  oft[fd].fileptr += nbytes;
-
-  return nbytes;
+		int left = oft[fd].fileptr;
+		int right = oft[fd].fileptr + nbytes;
+		int leftblock = left / fsd.blocksz;
+		int rightblock = right / fsd.blocksz;
+		if(right % fsd.blocksz != 0){
+			rightblock += 1;
+		}
+		int curr_block = oft[fd].in.size / fsd.blocksz;
+		
+		int blocks = FIRST_INODE_BLOCK + NUM_INODE_BLOCKS;
+		for(int i = curr_block; i < rightblock; i++){
+			while(fs_getmaskbit(blocks) != 0){
+				blocks++;
+			}
+			fs_setmaskbit(blocks);
+			i_node.blocks[i] = blocks;
+		}
+		if (right > oft[fd].in.size){
+			i_node.size = right;
+		}
+		int offset = left % fsd.blocksz;
+		int size = fsd.blocksz - offset;
+		char *buffer = (char *)buf;		
+		for (int i = leftblock; i < rightblock; i++) {
+			if(bs_bwrite(dev0, i_node.blocks[i], offset, buffer, size) == SYSERR){
+				return SYSERR;
+			}
+			offset = 0;
+			size = fsd.blocksz - offset;				
+			buffer = buffer + size;				
+		}
+		oft[fd].fileptr = right;
+		_fs_put_inode_by_num(dev0, oft[fd].de->inode_num, &i_node);
+		return nbytes;
 }
 
 
