@@ -426,7 +426,7 @@ int fs_create(char *filename, int mode) {
 
 int fs_seek(int fd, int offset)
 {
-    if (oft[fd].state == FSTATE_CLOSED || fd > NUM_FD || fd < -1) {
+    if (oft[fd].state == FSTATE_CLOSED || offset < 0 || offset >= oft[fd].in.size) {
         return SYSERR;
     }
     oft[fd].fileptr += offset;
