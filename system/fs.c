@@ -448,45 +448,32 @@ int fs_seek(int fd, int offset)
 
 int fs_read(int fd, void *buf, int nbytes)
 {
-    if (fd > NUM_FD || fd < -1 || oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_WRONLY)
+    if (isbadfd(fd) || oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_WRONLY)
     {
         return SYSERR;
     }
-    struct inode i_node;
-    _fs_get_inode_by_num(dev0, oft[fd].de->inode_num, &i_node);
+    char buffer[fsd.blocksz * INODEBLOCKS];
+    int size = 0;
+    int blocks_to_read = 0;
+    int already_read = 0;
+    int index = 0;
 
-    int left = oft[fd].fileptr;
-    int right = oft[fd].fileptr + nbytes;
-    if (right > oft[fd].in.size)
+    while (size != oft[fd].in.size)
     {
-        nbytes = i_node.size - oft[fd].fileptr;
-        right = i_node.size;
-    }
-    int leftblock = left / fsd.blocksz;
-    int rightblock = right / fsd.blocksz;
+        int size_diff = oft[fd].in.size - size;
+        blocks_to_read = size_diff < fsd.blocksz ? size_diff : fsd.blocksz;
 
-    if (right % fsd.blocksz != 0)
-    {
-        rightblock += 1;
+        index = oft[fd].in.blocks[already_read++];
+
+        fs_clearmaskbit(index);
+        bs_bread(0, index, 0, &buf[size], blocks_to_read);
+        size += blocks_to_read;
     }
 
-    int offset = left % fsd.blocksz;
-    int size = fsd.blocksz - offset;
-    char *buffer = (char *)buf;
-    for (int i = leftblock; i < rightblock; i++)
-    {
-        if (bs_bread(dev0, i_node.blocks[i], offset, buffer, size) == SYSERR)
-        {
-            return SYSERR;
-        }
-        offset = 0;
-        size = fsd.blocksz - offset;
-        buffer = buffer + size;
-    }
-    oft[fd].fileptr = right;
-    _fs_put_inode_by_num(dev0, oft[fd].de->inode_num, &i_node);
+    memcpy(buf, &buffer[oft[fd].fileptr], nbytes);
+    oft[fd].fileptr += nbytes;
 
-    return right;
+    return nbytes;
 }
 
 int fs_write(int fd, void *buf, int nbytes)
