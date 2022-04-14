@@ -505,7 +505,7 @@ int fs_write(int fd, void *buf, int nbytes)
     int remaining_blocks = (oft[fd].in.size + fsd.blocksz - 1) / fsd.blocksz;
     int has_err = 0;
     int err_return = 0;
-    int free_block_index = oft[fd].in.blocks[index];
+    int free_block_index = -1;
 
     if (remaining_blocks <= 0)
     {
@@ -519,6 +519,9 @@ int fs_write(int fd, void *buf, int nbytes)
         {
             oft[fd].in.blocks[index] = free_block_index;
         }
+    }
+    else {
+       free_block_index = oft[fd].in.blocks[index];
     }
 
     int offset = oft[fd].fileptr % fsd.blocksz;
