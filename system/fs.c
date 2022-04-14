@@ -453,31 +453,31 @@ int fs_read(int fd, void *buf, int nbytes)
         return SYSERR;
     }
 
-    char read_buf[fsd.blocksz * INODEBLOCKS];
-    int block_size = 0;
-    int blocks_to_read = 0;
-    int bytes_read = 0;
-    int block_index = 0;
-
-    while (block_size != oft[fd].in.size)
-    {
-        int offset = oft[fd].in.size - block_size;
-        blocks_to_read = offset < fsd.blocksz ? offset : fsd.blocksz;
-
-        block_index = oft[fd].in.blocks[bytes_read++];
-
-        fs_clearmaskbit(block_index);
-        if (bs_bread(0, block_index, 0, &buf[block_size], blocks_to_read) == SYSERR)
-        {
-            return SYSERR;
-        }
-        block_size += blocks_to_read;
+    int offset = oft[fd].in.size - oft[fd].fileptr;
+    if (nbytes > offset) {
+        nbytes = offset;
     }
 
-    memcpy(buf, &read_buf[oft[fd].fileptr], nbytes);
-    oft[fd].fileptr += nbytes;
+    int temp_bytes = nbytes;
+    int index = oft[fd].fileptr / fsd.blocksz;
+    int block_offset = oft[fd].fileptr % fsd.blocksz;
+    int blocks_to_read = fsd.blocksz -  block_offset;
 
-    return nbytes;
+    while (nbytes > 0) {
+        if (blocks_to_read > 0) {
+    	      bs_bread(dev0, oft[fd].in.blocks[index], block_offset, buf, blocks_to_read);
+  	    }
+      
+        index++;
+        block_offset = 0;
+        nbytes -= blocks_to_read;
+        buf = (char *)buf + blocks_to_read;
+        blocks_to_read = fsd.blocksz < nbytes ? fsd.blocksz : nbytes;
+    }
+    
+    oft[fd].fileptr += temp_bytes;
+  
+  return temp_bytes;
 }
 
 static int get_empty_block_index()
