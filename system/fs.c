@@ -482,82 +482,43 @@ int fs_write(int fd, void *buf, int nbytes)
     {
         return SYSERR;
     }
-    int bytes_to_write;
-    char buffer[fsd.blocksz * INODEBLOCKS];
-
-    int fp = oft[fd].fileptr;
-    int size = 0;
-    int blocks_to_read = 0;
-    int already_read = 0;
-    int index = 0;
-
-    while (size != oft[fd].in.size)
+    int block = (oft[fd].in.size / MDEV_BLOCK_SIZE) + 1;
+    int offset = oft[fd].in.size % MDEV_BLOCK_SIZE;
+    int bytes_written = 0;
+    while (nbytes > 0)
     {
-        int size_diff = oft[fd].in.size - size;
-        blocks_to_read = size_diff < fsd.blocksz ? size_diff : fsd.blocksz;
-
-        index = oft[fd].in.blocks[already_read++];
-
-        fs_clearmaskbit(index);
-        bs_bread(0, index, 0, &buf[size], blocks_to_read);
-        size += blocks_to_read;
-    }
-
-    memcpy(&buffer[fp], buf, nbytes);
-    fp += nbytes;
-
-    int free_bytes = nbytes;
-    int free_block = fsd.nblocks + 1;
-    int bytes;
-    void *bufptr = buf;
-    int i = INODEBLOCKS + 2;
-    int block_index = 0;
-    oft[fd].in.size = 0;
-    oft[fd].fileptr = 0;
-    while (free_bytes > 0)
-    {
-        for (; i <= fsd.nblocks; i++)
+        if (offset == 0)
         {
-            if (fs_getmaskbit(i) == 0)
+            int id;
+            for (int i = 0; i < MDEV_NUM_BLOCKS; i++)
             {
-                free_block = i;
-                break;
+                if (fs_getmaskbit(i) == 0)
+                {
+                    fs_setmaskbit(i);
+                    if (i == -1)
+                    {
+                        return SYSERR;
+                    }
+                    id = i;
+                }
             }
-        }
 
-        if (i > fsd.nblocks)
-        {
-            return SYSERR;
+            oft[fd].in.blocks[block] = id;
         }
+        int free_space = MDEV_BLOCK_SIZE - offset;
+        int bytes_to_write = (nbytes < free_space) ? nbytes : free_space;
 
-        if (free_bytes >= fsd.blocksz)
-        {
-            bytes = fsd.blocksz;
-            free_bytes -= fsd.blocksz;
-        }
-        else
-        {
-            bytes = free_bytes;
-            free_bytes = 0;
-        }
-
-        bs_bwrite(0, free_block, 0, bufptr, bytes);
-        bufptr += bytes;
-        oft[fd].fileptr += bytes;
-        oft[fd].in.blocks[block_index++] = free_block;
-        oft[fd].in.size += bytes;
-        fs_setmaskbit(free_block);
-        free_block = fsd.nblocks + 1;
+        bs_bwrite(dev0, oft[fd].in.blocks[block], offset, buf, bytes_to_write);
+        nbytes -= bytes_to_write;
+        bytes_written += bytes_to_write;
+        oft[fd].fileptr += bytes_to_write;
+        free_space = MDEV_BLOCK_SIZE;
+        offset = 0;
+        block += 1;
     }
+    oft[fd].in.size += bytes_written;
 
-    if (_fs_put_inode_by_num(0, oft[fd].de->inode_num, &oft[fd].in) == SYSERR)
-    {
-        return SYSERR;
-    } 
-
-    oft[fd].fileptr = fp;
-
-    return nbytes;
+    return bytes_written;
 }
 
 int fs_link(char *src_filename, char *dst_filename)
