@@ -529,8 +529,8 @@ int fs_write(int fd, void *buf, int nbytes)
         {
             return SYSERR;
         }
-        bytes = free_bytes < fsd.blocksz ? free_bytes : fsd.blocksz
-        free_bytes = free_bytes < fsd.blocksz ? 0 : (free_bytes - fsd.blocksz)
+        bytes = free_bytes < fsd.blocksz ? free_bytes : fsd.blocksz;
+        free_bytes = free_bytes < fsd.blocksz ? 0 : (free_bytes - fsd.blocksz);
 
         bs_bwrite(0, free_block, 0, bufptr, bytes);
         bufptr += bytes;
