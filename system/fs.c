@@ -503,8 +503,8 @@ int fs_write(int fd, void *buf, int nbytes)
         size += blocks_to_read;
     }
 
-    memcpy(&buffer[oft[fd].fileptr], buf, nbytes);
-    oft[fd].fileptr += nbytes;
+    memcpy(&buffer[fp], buf, nbytes);
+    fp += nbytes;
 
     int free_bytes = nbytes;
     int free_block = fsd.nblocks + 1;
@@ -529,6 +529,7 @@ int fs_write(int fd, void *buf, int nbytes)
         {
             return SYSERR;
         }
+
         bytes = free_bytes < fsd.blocksz ? free_bytes : fsd.blocksz;
         free_bytes = free_bytes < fsd.blocksz ? 0 : (free_bytes - fsd.blocksz);
 
@@ -542,8 +543,11 @@ int fs_write(int fd, void *buf, int nbytes)
     }
 
     _fs_put_inode_by_num(0, oft[fd].de->inode_num, &oft[fd].in);
+
     bytes_to_write = oft[fd].in.size;
     _fs_put_inode_by_num(0, oft[fd].de->inode_num, &oft[fd].in);
+
+    oft[fd].fileptr = fp;
 
     return nbytes;
 }
