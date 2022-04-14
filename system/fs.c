@@ -567,7 +567,7 @@ int fs_write(int fd, void *buf, int nbytes)
     int file_pointer = oft[fd].fileptr;
     int size = oft[fd].in.size;
 
-    if (size > file_pointer) {
+    if (size < file_pointer) {
         oft[fd].in.size = file_pointer;
     }
 
