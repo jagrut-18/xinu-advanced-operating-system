@@ -438,11 +438,11 @@ int fs_create(char *filename, int mode)
 
 int fs_seek(int fd, int offset)
 {
-    if (isbadfd(fd) || oft[fd].state == FSTATE_CLOSED || offset < 0 || offset >= oft[fd].in.size)
+    if (isbadfd(fd) || oft[fd].state == FSTATE_CLOSED || offset < 0 || offset > oft[fd].in.size)
     {
         return SYSERR;
     }
-    oft[fd].fileptr += offset;
+    oft[fd].fileptr = offset;
     return OK;
 }
 
@@ -530,8 +530,16 @@ int fs_write(int fd, void *buf, int nbytes)
             return SYSERR;
         }
 
-        bytes = free_bytes < fsd.blocksz ? free_bytes : fsd.blocksz;
-        free_bytes = free_bytes < fsd.blocksz ? 0 : (free_bytes - fsd.blocksz);
+        if (free_bytes >= fsd.blocksz)
+        {
+            bytes = fsd.blocksz;
+            free_bytes -= fsd.blocksz;
+        }
+        else
+        {
+            bytes = free_bytes;
+            free_bytes = 0;
+        }
 
         bs_bwrite(0, free_block, 0, bufptr, bytes);
         bufptr += bytes;
