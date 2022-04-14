@@ -552,9 +552,6 @@ int fs_write(int fd, void *buf, int nbytes)
 
     _fs_put_inode_by_num(0, oft[fd].de->inode_num, &oft[fd].in);
 
-    bytes_to_write = oft[fd].in.size;
-    _fs_put_inode_by_num(0, oft[fd].de->inode_num, &oft[fd].in);
-
     oft[fd].fileptr = fp;
 
     return nbytes;
