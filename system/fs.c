@@ -452,7 +452,7 @@ int fs_read(int fd, void *buf, int nbytes)
     {
         return SYSERR;
     }
-    
+
     char read_buf[fsd.blocksz * INODEBLOCKS];
     int block_size = 0;
     int blocks_to_read = 0;
@@ -467,7 +467,8 @@ int fs_read(int fd, void *buf, int nbytes)
         block_index = oft[fd].in.blocks[bytes_read++];
 
         fs_clearmaskbit(block_index);
-        if (bs_bread(0, block_index, 0, &buf[block_size], blocks_to_read) == SYSERR) {
+        if (bs_bread(0, block_index, 0, &buf[block_size], blocks_to_read) == SYSERR)
+        {
             return SYSERR;
         }
         block_size += blocks_to_read;
@@ -479,93 +480,99 @@ int fs_read(int fd, void *buf, int nbytes)
     return nbytes;
 }
 
+static int get_empty_block_index()
+{
+    for (int i = 15; i < fsd.nblocks; i++)
+    {
+        if (fs_getmaskbit(i) == 0)
+        {
+            fs_setmaskbit(i);
+            return i;
+        }
+    }
+    return -1;
+}
+
 int fs_write(int fd, void *buf, int nbytes)
 {
     if (oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_RDONLY || isbadfd(fd))
     {
         return SYSERR;
     }
-    char write_buf[fsd.blocksz * INODEBLOCKS];
+    int total_bytes = nbytes;
+    int temp_bytes = total_bytes;
+    int index = oft[fd].fileptr / fsd.blocksz;
+    int remaining_blocks = (oft[fd].in.size + fsd.blocksz - 1) / fsd.blocksz;
+    int has_err = 0;
+    int err_return = 0;
+    int free_block_index = oft[fd].in.blocks[index];
 
-    int file_pointer = oft[fd].fileptr;
-    int block_size = 0;
-    int blocks_to_read = 0;
-    int bytes_read = 0;
-    int block_index = 0;
-
-    while (block_size != oft[fd].in.size)
+    if (remaining_blocks <= 0)
     {
-        int offset = oft[fd].in.size - block_size;
-        blocks_to_read = offset < fsd.blocksz ? offset : fsd.blocksz;
-
-        block_index = oft[fd].in.blocks[bytes_read++];
-
-        fs_clearmaskbit(block_index);
-        bs_bread(0, block_index, 0, &buf[block_size], blocks_to_read);
-        block_size += blocks_to_read;
-    }
-
-    memcpy(&write_buf[file_pointer], buf, nbytes);
-    file_pointer += nbytes;
-
-    int bytes_left = nbytes;
-    int blocks_left = fsd.nblocks + 1;
-    int bytes;
-    void *buffer_pointer = buf;
-    int inode_blocks = INODEBLOCKS + 2;
-    int index = 0;
-    oft[fd].in.size = 0;
-    oft[fd].fileptr = 0;
-    while (bytes_left > 0)
-    {
-        while (inode_blocks <= fsd.nblocks)
+        free_block_index = get_empty_block_index();
+        if (free_block_index == -1)
         {
-            if (fs_getmaskbit(inode_blocks) == 0)
-            {
-                blocks_left = inode_blocks;
-                break;
-            }
-            inode_blocks++;
-        }
-
-        if (inode_blocks > fsd.nblocks)
-        {
-            return SYSERR;
-        }
-
-        if (bytes_left >= fsd.blocksz)
-        {
-            bytes = fsd.blocksz;
-            bytes_left -= fsd.blocksz;
+            has_err = 1;
+            err_return = 0;
         }
         else
         {
-            bytes = bytes_left;
-            bytes_left = 0;
+            oft[fd].in.blocks[index] = free_block_index;
         }
-
-        if (bs_bwrite(0, blocks_left, 0, buffer_pointer, bytes) == SYSERR) {
-            return SYSERR;
-        }
-        buffer_pointer += bytes;
-        oft[fd].fileptr += bytes;
-        oft[fd].in.blocks[index++] = blocks_left;
-        oft[fd].in.size += bytes;
-        fs_setmaskbit(blocks_left);
-        blocks_left = fsd.nblocks + 1;
     }
 
-    if (_fs_put_inode_by_num(0, oft[fd].de->inode_num, &oft[fd].in) == SYSERR)
-    {
-        return SYSERR;
-    } 
+    int offset = oft[fd].fileptr % fsd.blocksz;
+    int blocks_to_write = fsd.blocksz - offset;
 
-    oft[fd].fileptr = file_pointer;
-    if (oft[fd].in.size > file_pointer) {
+    while (has_err != 1 && total_bytes > 0)
+    {
+        if (blocks_to_write > 0)
+        {
+            bs_bwrite(dev0, free_block_index, offset, buf, blocks_to_write);
+        }
+
+        offset = 0;
+        total_bytes -= blocks_to_write;
+        buf = (char *)buf + blocks_to_write;
+        blocks_to_write = fsd.blocksz < total_bytes ? fsd.blocksz : total_bytes;
+        ++index;
+        if (total_bytes > 0)
+        {
+            if (index >= remaining_blocks)
+            {
+                free_block_index = get_empty_block_index();
+                if (free_block_index != -1)
+                {
+                    oft[fd].in.blocks[index] = free_block_index;
+                }
+                else
+                {
+                    has_err = 1;
+                    err_return = temp_bytes - total_bytes;
+                    break;
+                }
+            }
+            else
+            {
+                free_block_index = oft[fd].in.blocks[index];
+            }
+        }
+    }
+
+    if (has_err == 1) {
+        temp_bytes = err_return;
+    }
+    oft[fd].fileptr += temp_bytes;
+
+    int file_pointer = oft[fd].fileptr;
+    int size = oft[fd].in.size;
+
+    if (size > file_pointer) {
         oft[fd].in.size = file_pointer;
     }
 
-    return nbytes;
+    _fs_put_inode_by_num(0, oft[fd].in.id, &oft[fd].in);
+    return temp_bytes;
 }
 
 int fs_link(char *src_filename, char *dst_filename)
