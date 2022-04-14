@@ -453,14 +453,13 @@ int fs_read(int fd, void *buf, int nbytes)
         return SYSERR;
     }
     
-    int buf_size = fsd.blocksz * INODEBLOCKS;
-    char read_buf[buf_size];
+    char read_buf[fsd.blocksz * INODEBLOCKS];
     int block_size = 0;
     int blocks_to_read = 0;
     int bytes_read = 0;
     int block_index = 0;
 
-    while (size != oft[fd].in.size)
+    while (block_size != oft[fd].in.size)
     {
         int offset = oft[fd].in.size - block_size;
         blocks_to_read = offset < fsd.blocksz ? offset : fsd.blocksz;
