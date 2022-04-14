@@ -550,7 +550,10 @@ int fs_write(int fd, void *buf, int nbytes)
         free_block = fsd.nblocks + 1;
     }
 
-    _fs_put_inode_by_num(0, oft[fd].de->inode_num, &oft[fd].in);
+    if (_fs_put_inode_by_num(0, oft[fd].de->inode_num, &oft[fd].in) == SYSERR)
+    {
+        return SYSERR;
+    } 
 
     oft[fd].fileptr = fp;
 
