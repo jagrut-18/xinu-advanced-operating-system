@@ -514,7 +514,7 @@ int fs_write(int fd, void *buf, int nbytes)
     int bytes;
     void *buffer_pointer = buf;
     int inode_blocks = INODEBLOCKS + 2;
-    int block_index = 0;
+    int index = 0;
     oft[fd].in.size = 0;
     oft[fd].fileptr = 0;
     while (bytes_left > 0)
@@ -550,7 +550,7 @@ int fs_write(int fd, void *buf, int nbytes)
         }
         buffer_pointer += bytes;
         oft[fd].fileptr += bytes;
-        oft[fd].in.blocks[block_index++] = blocks_left;
+        oft[fd].in.blocks[index++] = blocks_left;
         oft[fd].in.size += bytes;
         fs_setmaskbit(blocks_left);
         blocks_left = fsd.nblocks + 1;
