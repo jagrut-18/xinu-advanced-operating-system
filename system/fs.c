@@ -453,10 +453,10 @@ int fs_read(int fd, void *buf, int nbytes)
         return SYSERR;
     }
 
-    int offset = oft[fd].in.size - oft[fd].fileptr;
-    if (nbytes > offset)
+    int temp_diff = oft[fd].in.size - oft[fd].fileptr;
+    if (nbytes > temp_diff)
     {
-        nbytes = offset;
+        nbytes = temp_diff;
     }
 
     int temp_bytes = nbytes;
