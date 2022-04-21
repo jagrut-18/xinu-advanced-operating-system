@@ -450,8 +450,8 @@ int fs_read(int fd, void *buf, int nbytes)
 {
     if (isbadfd(fd) || oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_WRONLY) return SYSERR;
 
-    if (nbytes > oft[fd].in.size) {
-        nbytes = oft[fd].in.size;
+    if (nbytes > (oft[fd].in.size - oft[fd].fileptr)) {
+        nbytes = (oft[fd].in.size - oft[fd].fileptr);
     }
 
     int total_blocks_to_read = nbytes / MDEV_BLOCK_SIZE;
@@ -466,6 +466,7 @@ int fs_read(int fd, void *buf, int nbytes)
         int bytes_to_read = i == (total_blocks_to_read - 1) ? last_block_bytes : MDEV_BLOCK_SIZE;
 
         bs_bread(dev0, block, offset, buf, bytes_to_read);
+        oft[fd].fileptr += bytes_to_read;
     }
 
     return nbytes;
@@ -476,11 +477,12 @@ int fs_write(int fd, void *buf, int nbytes)
     if (oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_RDONLY || isbadfd(fd)) return SYSERR;
     
     int free_blocks = 0;
-    for (int i = 0; i < MDEV_NUM_BLOCKS; i++) {
+    for (int i = 18; i < fsd.nblocks; i++) {
         if (fs_getmaskbit(i) == 0){
             free_blocks++;
         }
     }
+
 
     int required_blocks = nbytes / MDEV_BLOCK_SIZE;
     int last_block_bytes = nbytes % MDEV_BLOCK_SIZE;
@@ -490,7 +492,7 @@ int fs_write(int fd, void *buf, int nbytes)
 
     int blocks_to_write = required_blocks > free_blocks ? free_blocks : required_blocks;
     
-    for (int i = 0; i < MDEV_NUM_BLOCKS; i++) {
+    for (int i = 18; i < fsd.nblocks; i++) {
         if (fs_getmaskbit(i) == 1) continue;
 
         fs_setmaskbit(i);
