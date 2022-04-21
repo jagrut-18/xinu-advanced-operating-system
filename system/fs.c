@@ -450,23 +450,25 @@ int fs_read(int fd, void *buf, int nbytes)
 {
     if (isbadfd(fd) || oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_WRONLY) return SYSERR;
 
-    if (nbytes > (oft[fd].in.size - oft[fd].fileptr)) {
-        nbytes = (oft[fd].in.size - oft[fd].fileptr);
-    }
-
     int total_blocks_to_read = nbytes / MDEV_BLOCK_SIZE;
     int last_block_bytes = nbytes % MDEV_BLOCK_SIZE;
     if (last_block_bytes != 0) {
         total_blocks_to_read++;
     }
-
+    
+    int bytes_finished = 0;
     for (int i = 0; i < total_blocks_to_read; i++) {
+
+        if(oft[fd].fileptr > oft[fd].in.size) {
+			return bytes_finished;
+		}
         int offset = oft[fd].fileptr % MDEV_BLOCK_SIZE;
         int block = oft[fd].in.blocks[i];
         int bytes_to_read = i == (total_blocks_to_read - 1) ? last_block_bytes : MDEV_BLOCK_SIZE;
 
         bs_bread(dev0, block, offset, buf, bytes_to_read);
         oft[fd].fileptr += bytes_to_read;
+        bytes_finished += bytes_to_read;
     }
 
     return nbytes;
@@ -491,10 +493,11 @@ int fs_write(int fd, void *buf, int nbytes)
     }
 
     int blocks_to_write = required_blocks > free_blocks ? free_blocks : required_blocks;
-    
-    for (int i = 18; i < fsd.nblocks; i++) {
-        if (fs_getmaskbit(i) == 1) continue;
+    int bytes_written = 0;
 
+    for (int i = 18; i < fsd.nblocks; i++) {
+        if (i > blocks_to_write) return bytes_written;
+        if (fs_getmaskbit(i) == 1) continue;
         fs_setmaskbit(i);
 
         for (int j = 0; j < INODEBLOCKS; j++) {
@@ -506,11 +509,12 @@ int fs_write(int fd, void *buf, int nbytes)
         int block = oft[fd].in.blocks[i];
         int bytes_to_write = i == (blocks_to_write - 1) ? last_block_bytes : MDEV_BLOCK_SIZE;
         bs_bwrite(dev0, block, offset, buf, bytes_to_write);
+
+        oft[fd].in.size += bytes_to_write;
+        oft[fd].fileptr += bytes_to_write;
+        bytes_written += bytes_to_write;
     }
 
-    int bytes_written = (required_blocks * MDEV_BLOCK_SIZE) + last_block_bytes;
-    oft[fd].in.size += bytes_written;
-    oft[fd].fileptr += bytes_written;
 
     return bytes_written;
 }
