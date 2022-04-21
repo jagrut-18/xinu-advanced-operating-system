@@ -387,7 +387,7 @@ int fs_open(char *filename, int flags)
     oft[file_index].fileptr = 0;
     oft[file_index].de = &file_dirent;
     oft[file_index].in = inode;
-    oft[file_index].flag = flags
+    oft[file_index].flag = flags;
 
     return file_index;
 }
@@ -404,7 +404,7 @@ int fs_close(int fd)
 
 int fs_create(char *filename, int mode)
 {
-    if (mode != O_CREAT || fsd.numentries == DIRECTORY_SIZE) return SYSERR;
+    if (mode != O_CREAT || fsd.root_dir.numentries == DIRECTORY_SIZE) return SYSERR;
 
     int empty_entry_index = -1;
     for (int i = 0; i < fsd.root_dir.numentries; i++) {
@@ -431,7 +431,7 @@ int fs_create(char *filename, int mode)
     fsd.inodes_used++;
 
     dirent_t new_dirent;
-    new_dirent.name = filename;
+    strcpy(new_dirent.name, filename);
     new_dirent.inode_num = inode_id;
 
     fsd.root_dir.entry[empty_entry_index] = new_dirent;
@@ -507,12 +507,12 @@ int fs_write(int fd, void *buf, int nbytes)
         int offset = oft[fd].fileptr % MDEV_BLOCK_SIZE;
         int block = oft[fd].in.blocks[i];
         int bytes_to_write = i == (blocks_to_write - 1) ? last_block_bytes : MDEV_BLOCK_SIZE;
-        bs_bwrite(dev0, blocks, offset, buf, bytes_to_write);
+        bs_bwrite(dev0, block, offset, buf, bytes_to_write);
     }
 
     int bytes_written = (required_blocks * MDEV_BLOCK_SIZE) + last_block_bytes;
-    oft[fd].in.size += bytesWritten;
-    oft[fd].fileptr += bytesWritten;
+    oft[fd].in.size += bytes_written;
+    oft[fd].fileptr += bytes_written;
 
     return bytes_written;
 }
@@ -537,7 +537,7 @@ int fs_link(char *src_filename, char *dst_filename)
     int src_inode_id = src_dirent.inode_num;
     inode_t inode;
     _fs_get_inode_by_num(dev0, src_inode_id, &inode);
-    inode.nlinks++;
+    inode.nlink++;
     _fs_put_inode_by_num(dev0, src_inode_id, &inode);
 
     for (int i = 0; i < NUM_FD; i++) {
@@ -547,7 +547,7 @@ int fs_link(char *src_filename, char *dst_filename)
   	}
 
     dirent_t dst_dirent;
-    dst_dirent.name = dst_filename;
+    strcpy(dst_dirent.name, dst_filename);
     dst_dirent.inode_num = src_inode_id;
 
     fsd.root_dir.entry[empty_entry_index] = dst_dirent;
@@ -573,7 +573,7 @@ int fs_unlink(char *filename)
     inode_t inode;
     _fs_get_inode_by_num(dev0, inode_id, &inode);
 
-    if (inode.nlinks == 1) {
+    if (inode.nlink == 1) {
         int blocks_to_clear = (inode.size / MDEV_BLOCK_SIZE) + (inode.size % MDEV_BLOCK_SIZE);
         for (int i = 0; i < blocks_to_clear; i++) {
             fs_clearmaskbit(i);
@@ -581,10 +581,10 @@ int fs_unlink(char *filename)
     }
     fsd.inodes_used--;
     fsd.root_dir.entry[file_index].inode_num = EMPTY;
-    fsd.root_dir.entry[file_index].name = "";
+    strcpy(fsd.root_dir.entry[file_index].name, "");
 
-    inode.nlinks--;
-    _fs_put_inode_by_num(dev0, src_inode_id, &inode);
+    inode.nlink--;
+    _fs_put_inode_by_num(dev0, inode_id, &inode);
     return OK;
 }
 
