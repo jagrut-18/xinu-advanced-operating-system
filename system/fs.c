@@ -493,11 +493,10 @@ int fs_write(int fd, void *buf, int nbytes)
     }
 
     int blocks_to_write = required_blocks > free_blocks ? free_blocks : required_blocks;
-    int bytes_written = 0;
-
+    
     for (int i = 18; i < fsd.nblocks; i++) {
-        if (i > blocks_to_write) return bytes_written;
         if (fs_getmaskbit(i) == 1) continue;
+
         fs_setmaskbit(i);
 
         for (int j = 0; j < INODEBLOCKS; j++) {
@@ -509,12 +508,11 @@ int fs_write(int fd, void *buf, int nbytes)
         int block = oft[fd].in.blocks[i];
         int bytes_to_write = i == (blocks_to_write - 1) ? last_block_bytes : MDEV_BLOCK_SIZE;
         bs_bwrite(dev0, block, offset, buf, bytes_to_write);
-
-        oft[fd].in.size += bytes_to_write;
-        oft[fd].fileptr += bytes_to_write;
-        bytes_written += bytes_to_write;
     }
 
+    int bytes_written = (required_blocks * MDEV_BLOCK_SIZE) + last_block_bytes;
+    oft[fd].in.size += bytes_written;
+    oft[fd].fileptr += bytes_written;
 
     return bytes_written;
 }
