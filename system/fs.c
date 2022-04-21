@@ -516,10 +516,10 @@ int fs_write(int fd, void *buf, int nbytes)
             bytes_to_write = last_block_bytes;
         }
         else {
-            int bytes_to_write = MDEV_BLOCK_SIZE;
+            bytes_to_write = MDEV_BLOCK_SIZE;
         }
         bs_bwrite(dev0, block, offset, buf, bytes_to_write);
-        oft[fd].fileptr += bytes_written;
+        oft[fd].fileptr += bytes_to_write;
     }
 
     int bytes_written = ((blocks_to_write - 1) * MDEV_BLOCK_SIZE) + last_block_bytes;
