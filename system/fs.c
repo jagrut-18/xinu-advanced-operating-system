@@ -450,6 +450,8 @@ int fs_read(int fd, void *buf, int nbytes)
 {
     if (isbadfd(fd) || oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_WRONLY) return SYSERR;
 
+    int capacity = (oft[fd].in.size - oft[fd].fileptr);
+    nbytes = nbytes > capacity ? capacity : nbytes;
     int total_blocks_to_read = nbytes / MDEV_BLOCK_SIZE;
     int last_block_bytes = nbytes % MDEV_BLOCK_SIZE;
     if (last_block_bytes != 0) {
@@ -485,7 +487,6 @@ int fs_write(int fd, void *buf, int nbytes)
         }
     }
 
-
     int required_blocks = nbytes / MDEV_BLOCK_SIZE;
     int last_block_bytes = nbytes % MDEV_BLOCK_SIZE;
     if (last_block_bytes != 0) {
@@ -501,18 +502,28 @@ int fs_write(int fd, void *buf, int nbytes)
 
         for (int j = 0; j < INODEBLOCKS; j++) {
             if (oft[fd].in.blocks[j] != EMPTY) continue;
+            fs_clearmaskbit(oft[fd].in.blocks[j]);
             oft[fd].in.blocks[j] = i;
         }
 
         int offset = oft[fd].fileptr % MDEV_BLOCK_SIZE;
         int block = oft[fd].in.blocks[i];
-        int bytes_to_write = i == (blocks_to_write - 1) ? last_block_bytes : MDEV_BLOCK_SIZE;
+        int bytes_to_write = 0;
+        if (i == 0) {
+            bytes_to_write = fsd.blocksz - oft[fd].fileptr;
+        }
+        else if (i == (blocks_to_write - 1)) {
+            bytes_to_write = last_block_bytes;
+        }
+        else {
+            int bytes_to_write = MDEV_BLOCK_SIZE;
+        }
         bs_bwrite(dev0, block, offset, buf, bytes_to_write);
+        oft[fd].fileptr += bytes_written;
     }
 
-    int bytes_written = (blocks_to_write * MDEV_BLOCK_SIZE) + last_block_bytes;
+    int bytes_written = ((blocks_to_write - 1) * MDEV_BLOCK_SIZE) + last_block_bytes;
     oft[fd].in.size += bytes_written;
-    oft[fd].fileptr += bytes_written;
 
     return bytes_written;
 }
