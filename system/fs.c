@@ -389,6 +389,8 @@ int fs_open(char *filename, int flags)
     oft[file_index].in = inode;
     oft[file_index].flag = flags;
 
+    _fs_put_inode_by_num(dev0, inode_id, &inode);
+
     return file_index;
 }
 
@@ -404,26 +406,20 @@ int fs_close(int fd)
 
 int fs_create(char *filename, int mode)
 {
-    if (mode != O_CREAT || fsd.root_dir.numentries == DIRECTORY_SIZE) return SYSERR;
+    if (mode != O_CREAT || fsd.root_dir.numentries >= DIRECTORY_SIZE) return SYSERR;
 
-    int empty_entry_index = -1;
     for (int i = 0; i < fsd.root_dir.numentries; i++) {
         dirent_t sub_directory = fsd.root_dir.entry[i];
-
-        if (empty_entry_index == -1 && sub_directory.inode_num == EMPTY){
-            empty_entry_index = i;
-        }
         if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
     }
-    if (empty_entry_index == -1) return SYSERR;
 
-    int inode_id = empty_entry_index;
+    int inode_id = fsd.inodes_used;
     inode_t inode;
     _fs_get_inode_by_num(dev0, inode_id, &inode);
 
     inode.id = inode_id;
     inode.type = INODE_TYPE_FILE;
-    inode.nlink = 0;
+    inode.nlink = 1;
     inode.device = dev0;
     inode.size = 0;
 
@@ -434,7 +430,7 @@ int fs_create(char *filename, int mode)
     strcpy(new_dirent.name, filename);
     new_dirent.inode_num = inode_id;
 
-    fsd.root_dir.entry[empty_entry_index] = new_dirent;
+    fsd.root_dir.entry[fsd.root_dir.numentries] = new_dirent;
     fsd.root_dir.numentries++;
 
     return fs_open(filename, O_RDWR);
