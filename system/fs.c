@@ -401,6 +401,7 @@ int fs_close(int fd)
         return SYSERR;
     }
     oft[fd].state = FSTATE_CLOSED;
+    oft[fd].fileptr = 0;
     return OK;
 }
 
@@ -457,9 +458,7 @@ int fs_read(int fd, void *buf, int nbytes)
     while (remaining_bytes > 0) {
 
         if (oft[fd].fileptr > oft[fd].in.size) return nbytes - remaining_bytes;
-        int offset = oft[fd].fileptr % fsd.blocksz;
-        int block_index = oft[fd].fileptr / fsd.blocksz;
-        int block = oft[fd].in.blocks[block_index];
+        int block = oft[fd].in.blocks[oft[fd].fileptr];
         bs_bread(dev0, block, 0, buf, 1);
         oft[fd].fileptr += 1;
         remaining_bytes -= 1;
@@ -482,9 +481,7 @@ int fs_write(int fd, void *buf, int nbytes)
     }
 
     for (int i = 0; i < nbytes; i++) {
-        int offset = oft[fd].fileptr % fsd.blocksz;
-        int block_index = oft[fd].fileptr / fsd.blocksz;
-        int block = oft[fd].in.blocks[block_index];
+        int block = oft[fd].in.blocks[oft[fd].fileptr];
         bs_bwrite(dev0, block, 0, buf, 1);
         oft[fd].fileptr += 1;
     }
