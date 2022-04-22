@@ -479,50 +479,48 @@ int fs_read(int fd, void *buf, int nbytes)
 int fs_write(int fd, void *buf, int nbytes)
 {
     if (oft[fd].state == FSTATE_CLOSED || oft[fd].flag == O_RDONLY || isbadfd(fd)) return SYSERR;
-    
-    int free_blocks = 0;
-    for (int i = 18; i < fsd.nblocks; i++) {
-        if (fs_getmaskbit(i) == 0){
-            free_blocks++;
-        }
-    }
 
-    int required_blocks = nbytes / MDEV_BLOCK_SIZE;
+    int blocks_to_write = nbytes / MDEV_BLOCK_SIZE;
     int last_block_bytes = nbytes % MDEV_BLOCK_SIZE;
     if (last_block_bytes != 0) {
-        required_blocks++;
+        blocks_to_write++;
     }
 
-    int blocks_to_write = required_blocks > free_blocks ? free_blocks : required_blocks;
-    
+    int bytes_written = 0;
+    int blocks_written = 0;
+
     for (int i = 18; i < fsd.nblocks; i++) {
+        if (blocks_written == blocks_to_write) break;
         if (fs_getmaskbit(i) == 1) continue;
 
         fs_setmaskbit(i);
-
-        for (int j = 0; j < INODEBLOCKS; j++) {
+        int found_empty_inode_block = 0;
+        for (int j = 0; j < INODEDIRECTBLOCKS; j++) {
             if (oft[fd].in.blocks[j] != EMPTY) continue;
-            fs_clearmaskbit(oft[fd].in.blocks[j]);
             oft[fd].in.blocks[j] = i;
+            found_empty_inode_block = 1;
+            break;
         }
+        if (found_empty_inode_block == 0) return bytes_written;
 
         int offset = oft[fd].fileptr % MDEV_BLOCK_SIZE;
         int block = oft[fd].in.blocks[i];
         int bytes_to_write = 0;
-        if (i == 0) {
+        if (blocks_written == 0) {
             bytes_to_write = fsd.blocksz - oft[fd].fileptr;
         }
-        else if (i == (blocks_to_write - 1)) {
+        else if (blocks_written == (blocks_to_write - 1)) {
             bytes_to_write = last_block_bytes;
         }
         else {
             bytes_to_write = MDEV_BLOCK_SIZE;
         }
         bs_bwrite(dev0, block, offset, buf, bytes_to_write);
+        blocks_written++;
         oft[fd].fileptr += bytes_to_write;
+        bytes_written += bytes_to_write;
     }
 
-    int bytes_written = ((blocks_to_write - 1) * MDEV_BLOCK_SIZE) + last_block_bytes;
     oft[fd].in.size += bytes_written;
 
     return bytes_written;
