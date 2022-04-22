@@ -501,10 +501,14 @@ int fs_write(int fd, void *buf, int nbytes)
             }
             if (empty_block_index == -1) return nbytes + i;
 
-            if (oft[fd].in.blocks[i] != EMPTY) {
-                fs_clearmaskbit(oft[fd].in.blocks[i]);
+            int found_empty_inode_block = 0;
+            for (int j = 0; j < INODEDIRECTBLOCKS; j++) {
+                if (oft[fd].in.blocks[j] != EMPTY) continue;
+                oft[fd].in.blocks[j] = empty_block_index;
+                found_empty_inode_block = 1;
+                break;
             }
-            oft[fd].in.blocks[i] = empty_block_index;
+            if (found_empty_inode_block == 0) return nbytes + i;
             oft[fd].in.size += fsd.blocksz;
         }
 
