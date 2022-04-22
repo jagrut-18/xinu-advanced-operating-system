@@ -458,8 +458,10 @@ int fs_read(int fd, void *buf, int nbytes)
     while (remaining_bytes > 0) {
 
         if (oft[fd].fileptr > oft[fd].in.size) return nbytes - remaining_bytes;
-        int block = oft[fd].in.blocks[oft[fd].fileptr];
-        bs_bread(dev0, block, 0, buf, 1);
+        int block_index = oft[fd].fileptr / fsd.blocksz;
+        int block = oft[fd].in.blocks[block_index];
+        int offset = oft[fd].fileptr % fsd.blocksz;
+        bs_bread(dev0, block, offset, buf, 1);
         oft[fd].fileptr += 1;
         remaining_bytes -= 1;
     }
@@ -481,15 +483,17 @@ int fs_write(int fd, void *buf, int nbytes)
     }
 
     for (int i = 0; i < nbytes; i++) {
-        int block = oft[fd].in.blocks[oft[fd].fileptr];
-        bs_bwrite(dev0, block, 0, buf, 1);
+        int block_index = oft[fd].fileptr / fsd.blocksz;
+        int block = oft[fd].in.blocks[block_index];
+        int offset = oft[fd].fileptr % fsd.blocksz;
+        bs_bwrite(dev0, block, offset, buf, 1);
         oft[fd].fileptr += 1;
     }
     if (extra_bytes == 0) return nbytes;
 
     for (int i = 0; i < extra_bytes; i++) {
         int empty_block_index = -1;
-        if (oft[fd].fileptr > oft[fd].in.size) {
+        if (oft[fd].fileptr >= oft[fd].in.size) {
             for (int j = 18; j < fsd.nblocks; j++) {
                 if (fs_getmaskbit(j) == 1) continue;
                 fs_setmaskbit(j);
@@ -510,7 +514,7 @@ int fs_write(int fd, void *buf, int nbytes)
         }
 
         int offset = oft[fd].fileptr % fsd.blocksz;
-        bs_bwrite(dev0, empty_block_index, 0, buf, 1);
+        bs_bwrite(dev0, empty_block_index, offset, buf, 1);
         oft[fd].fileptr += 1;
     }
 
