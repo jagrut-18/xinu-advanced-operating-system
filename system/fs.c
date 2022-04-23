@@ -611,6 +611,8 @@ int fs_unlink(char *filename)
         for (int i = 0; i < NUM_FD; i++) {
             if (oft[i].in.id == inode_id){
                 oft[i].in = inode;
+                oft[i].de = NULL;
+                oft[i].state = FSTATE_CLOSED;
                 break;
             }
         }
