@@ -600,10 +600,12 @@ int fs_unlink(char *filename)
     _fs_get_inode_by_num(dev0, inode_id, &inode);
 
     if (inode.nlink == 1) {
-        inode.size = 0;
-        for (int i = 0; i < inode.blocks; i++) {
+        for (int i = 0; i < INODEDIRECTBLOCKS; i++) {
+            if (inode.blocks[i] == EMPTY) continue;
             fs_clearmaskbit(inode.blocks[i]);
+            inode.blocks[i] = EMPTY;
         }
+        inode.size = 0;
         fsd.inodes_used--;
     }
     fsd.root_dir.entry[file_index].inode_num = EMPTY;
