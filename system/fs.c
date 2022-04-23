@@ -503,7 +503,7 @@ int fs_write(int fd, void *buf, int nbytes)
         oft[fd].fileptr += 1;
     }
     if (extra_bytes == 0) return nbytes;
-    
+
     for (int i = 0; i < extra_bytes; i++) {
         int empty_block_index = -1;
         if (oft[fd].fileptr >= oft[fd].in.size) {
@@ -540,12 +540,15 @@ int fs_write(int fd, void *buf, int nbytes)
 
 int fs_link(char *src_filename, char *dst_filename)
 {
+    if (!src_filename || !dst_filename) return SYSERR;
+    if (fsd.root_dir.numentries >= DIRECTORY_SIZE) return SYSERR;
     dirent_t src_dirent;
     int found_src = 0;
     int empty_entry_index = -1;
-    for (int i = 0; i < fsd.root_dir.numentries; i++) {
+    for (int i = 0; i < DIRECTORY_SIZE; i++) {
         dirent_t sub_directory = fsd.root_dir.entry[i];
-        if (strcmp(sub_directory.name, src_filename) == 0) {
+        if (strcmp(sub_directory.name, dst_filename) == 0) return SYSERR;
+        if (found_src != 1 && strcmp(sub_directory.name, src_filename) == 0) {
             src_dirent = sub_directory;
             found_src = 1;
         }
@@ -579,6 +582,7 @@ int fs_link(char *src_filename, char *dst_filename)
 
 int fs_unlink(char *filename)
 {
+    if (!filename) return SYSERR;
     dirent_t file_dirent;
     int file_index = -1;
     for (int i = 0; i < fsd.root_dir.numentries; i++) {
@@ -586,6 +590,7 @@ int fs_unlink(char *filename)
         if (strcmp(sub_directory.name, filename) == 0) {
             file_dirent = sub_directory;
             file_index = i;
+            break;
         }
     }
     if (file_index == -1) return SYSERR;
@@ -595,12 +600,12 @@ int fs_unlink(char *filename)
     _fs_get_inode_by_num(dev0, inode_id, &inode);
 
     if (inode.nlink == 1) {
-        int blocks_to_clear = (inode.size / MDEV_BLOCK_SIZE) + (inode.size % MDEV_BLOCK_SIZE);
-        for (int i = 0; i < blocks_to_clear; i++) {
-            fs_clearmaskbit(i);
+        inode.size = 0;
+        for (int i = 0; i < inode.blocks; i++) {
+            fs_clearmaskbit(inode.blocks[i]);
         }
+        fsd.inodes_used--;
     }
-    fsd.inodes_used--;
     fsd.root_dir.entry[file_index].inode_num = EMPTY;
     strcpy(fsd.root_dir.entry[file_index].name, "");
 
