@@ -414,7 +414,16 @@ int fs_create(char *filename, int mode)
         if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
     }
 
-    int inode_id = fsd.inodes_used;
+    int inode_id = -1;
+    for (int i = 0; i < DIRECTORY_SIZE; i++) {
+        dirent_t sub_directory = fsd.root_dir.entry[i];
+        if (sub_directory.inode_num == -1) {
+            inode_id = i;
+            break;
+        }
+    }
+    if (inode_id == -1) return SYSERR;
+
     inode_t inode;
     _fs_get_inode_by_num(dev0, inode_id, &inode);
 
@@ -438,6 +447,7 @@ int fs_create(char *filename, int mode)
     return fs_open(filename, O_RDWR);
 }
 
+
 int fs_seek(int fd, int offset)
 {
     if (isbadfd(fd) || oft[fd].state == FSTATE_CLOSED || offset < 0 || offset > oft[fd].in.size) {
@@ -454,14 +464,15 @@ int fs_read(int fd, void *buf, int nbytes)
     if (nbytes < 0 || !buf) return SYSERR;
 
     int remaining_bytes = nbytes;
-
+    void *moving_buffer = buf;
     while (remaining_bytes > 0) {
 
         if (oft[fd].fileptr > oft[fd].in.size) return nbytes - remaining_bytes;
         int block_index = oft[fd].fileptr / fsd.blocksz;
         int block = oft[fd].in.blocks[block_index];
         int offset = oft[fd].fileptr % fsd.blocksz;
-        bs_bread(dev0, block, offset, buf, 1);
+        bs_bread(dev0, block, offset, moving_buffer, 1);
+        moving_buffer = (char *) moving_buffer + 1;
         oft[fd].fileptr += 1;
         remaining_bytes -= 1;
     }
@@ -482,15 +493,17 @@ int fs_write(int fd, void *buf, int nbytes)
         nbytes = capacity;
     }
 
+    void *moving_buffer = buf;
     for (int i = 0; i < nbytes; i++) {
         int block_index = oft[fd].fileptr / fsd.blocksz;
         int block = oft[fd].in.blocks[block_index];
         int offset = oft[fd].fileptr % fsd.blocksz;
-        bs_bwrite(dev0, block, offset, buf, 1);
+        bs_bwrite(dev0, block, offset, moving_buffer, 1);
+        moving_buffer = (char *) moving_buffer + 1;
         oft[fd].fileptr += 1;
     }
     if (extra_bytes == 0) return nbytes;
-
+    
     for (int i = 0; i < extra_bytes; i++) {
         int empty_block_index = -1;
         if (oft[fd].fileptr >= oft[fd].in.size) {
@@ -514,7 +527,10 @@ int fs_write(int fd, void *buf, int nbytes)
         }
 
         int offset = oft[fd].fileptr % fsd.blocksz;
-        bs_bwrite(dev0, empty_block_index, offset, buf, 1);
+        int block_index = oft[fd].fileptr / fsd.blocksz;
+        int block = oft[fd].in.blocks[block_index];
+        bs_bwrite(dev0, block, offset, moving_buffer, 1);
+        moving_buffer = (char *) moving_buffer + 1;
         oft[fd].fileptr += 1;
     }
 
