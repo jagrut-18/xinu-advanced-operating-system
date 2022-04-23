@@ -467,7 +467,7 @@ int fs_read(int fd, void *buf, int nbytes)
     void *moving_buffer = buf;
     while (remaining_bytes > 0) {
 
-        if (oft[fd].fileptr > oft[fd].in.size) return nbytes - remaining_bytes;
+        if (oft[fd].fileptr >= oft[fd].in.size) return nbytes - remaining_bytes;
         int block_index = oft[fd].fileptr / fsd.blocksz;
         int block = oft[fd].in.blocks[block_index];
         int offset = oft[fd].fileptr % fsd.blocksz;
