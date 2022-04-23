@@ -524,6 +524,7 @@ int fs_write(int fd, void *buf, int nbytes)
             }
             if (found_empty_inode_block == 0) return nbytes + i;
             oft[fd].in.size += fsd.blocksz;
+            _fs_put_inode_by_num(dev0, oft[fd].in.id, &oft[fd].in);
         }
 
         int offset = oft[fd].fileptr % fsd.blocksz;
@@ -599,6 +600,7 @@ int fs_unlink(char *filename)
     inode_t inode;
     _fs_get_inode_by_num(dev0, inode_id, &inode);
 
+    inode.nlink--;
     if (inode.nlink == 1) {
         for (int i = 0; i < INODEDIRECTBLOCKS; i++) {
             if (inode.blocks[i] == EMPTY) continue;
@@ -606,12 +608,18 @@ int fs_unlink(char *filename)
             inode.blocks[i] = EMPTY;
         }
         inode.size = 0;
+        for (int i = 0; i < NUM_FD; i++) {
+            if (oft[i].in.id == inode_id){
+                oft[i].in = inode;
+                break;
+            }
+        }
         fsd.inodes_used--;
     }
     fsd.root_dir.entry[file_index].inode_num = EMPTY;
     strcpy(fsd.root_dir.entry[file_index].name, "");
 
-    inode.nlink--;
+    
     _fs_put_inode_by_num(dev0, inode_id, &inode);
     return OK;
 }
