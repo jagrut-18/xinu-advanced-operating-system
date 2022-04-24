@@ -366,8 +366,6 @@ int fs_open(char *filename, int flags)
 
     for (int i = 0; i < NUM_FD; i++) {
         dirent_t file_dirent = *oft[i].de;
-        printf(file_dirent.name);
-        printf((*oft[i].de).name);
         if (strcmp(file_dirent.name, filename) == 0 && oft[i].state == FSTATE_OPEN) return SYSERR;
     }
 
