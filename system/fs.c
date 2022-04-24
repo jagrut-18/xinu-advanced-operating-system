@@ -612,6 +612,7 @@ int fs_unlink(char *filename)
     }
     fsd.root_dir.entry[file_index].inode_num = EMPTY;
     strcpy(fsd.root_dir.entry[file_index].name, "");
+    fsd.root_dir.numentries--;
     for (int i = 0; i < NUM_FD; i++) {
             if (oft[i].in.id == inode_id){
                 oft[i].in = inode;
