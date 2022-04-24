@@ -359,41 +359,51 @@ void fs_printfreemask(void)
  * TODO: implement the functions below
  */
 
+static int get_file_index_from_root(char *filename) {
+    for (int i = 0; i < DIRECTORY_SIZE; i++) {
+        dirent_t sub_directory = fsd.root_dir.entry[i];
+        if (sub_directory.inode_num == EMPTY) continue;
+        if (strcmp(sub_directory.name, filename) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
 
 int fs_open(char *filename, int flags)
 {
     if (flags != O_RDONLY && flags != O_WRONLY && flags != O_RDWR) return SYSERR;
 
+    int fd = -1;
     for (int i = 0; i < NUM_FD; i++) {
         dirent_t file_dirent = *oft[i].de;
-        if (strcmp(file_dirent.name, filename) == 0 && oft[i].state == FSTATE_OPEN) return SYSERR;
-    }
-
-    dirent_t file_dirent;
-    int file_index = -1;
-    for (int i = 0; i < fsd.root_dir.numentries; i++) {
-        dirent_t sub_directory = fsd.root_dir.entry[i];
-        if (strcmp(sub_directory.name, filename) == 0) {
-            file_dirent = sub_directory;
-            file_index = i;
+        if (strcmp(file_dirent.name, filename) == 0) {
+            if (oft[i].state == FSTATE_OPEN) return SYSERR;
+            fd = i;
             break;
         }
+        if (fd == -1 && oft[i].in.id == EMPTY){
+            fd = i;
+        }
     }
+
+    int file_index = get_file_index_from_root(filename);
     if (file_index == -1) return SYSERR;
+    dirent_t file_dirent = fsd.root_dir.entry[file_index];
 
     int inode_id = file_dirent.inode_num;
     inode_t inode;
     _fs_get_inode_by_num(dev0, inode_id, &inode);
 
-    oft[file_index].state = FSTATE_OPEN;
-    oft[file_index].fileptr = 0;
-    oft[file_index].de = &file_dirent;
-    oft[file_index].in = inode;
-    oft[file_index].flag = flags;
+    oft[fd].state = FSTATE_OPEN;
+    oft[fd].fileptr = 0;
+    oft[fd].de = &fsd.root_dir.entry[file_index];
+    oft[fd].in = inode;
+    oft[fd].flag = flags;
 
     _fs_put_inode_by_num(dev0, inode_id, &inode);
 
-    return file_index;
+    return fd;
 }
 
 int fs_close(int fd)
@@ -426,15 +436,15 @@ int fs_create(char *filename, int mode)
         if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
     }
 
-    int entry_index = -1;
+    int empty_entry_index = -1;
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
         dirent_t sub_directory = fsd.root_dir.entry[i];
         if (sub_directory.inode_num == -1) {
-            entry_index = i;
+            empty_entry_index = i;
             break;
         }
     }
-    if (entry_index == -1) return SYSERR;
+    if (empty_entry_index == -1) return SYSERR;
 
     int inode_id = get_empty_inode_num();
     if (inode_id == -1) return SYSERR;
@@ -454,7 +464,7 @@ int fs_create(char *filename, int mode)
     strcpy(new_dirent.name, filename);
     new_dirent.inode_num = inode_id;
 
-    fsd.root_dir.entry[entry_index] = new_dirent;
+    fsd.root_dir.entry[empty_entry_index] = new_dirent;
     fsd.root_dir.numentries++;
 
     return fs_open(filename, O_RDWR);
@@ -644,7 +654,7 @@ int fs_unlink(char *filename)
             if (oft[i].in.id == inode_id){
                 oft[i].in = inode;
             }
-            if (strcmp(oft[i].de->name, filename) == 0) {
+            if (strcmp((*oft[i].de).name, filename) == 0) {
                 oft[i].in = reset_inode(inode);
                 oft[i].de = NULL;
                 oft[i].state = FSTATE_CLOSED;
