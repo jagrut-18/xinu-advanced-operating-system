@@ -405,6 +405,17 @@ int fs_close(int fd)
     return OK;
 }
 
+static int get_empty_inode_num(){
+    for (int i = 0; i < fsd.ninodes; i++) {
+        inode_t inode;
+        _fs_get_inode_by_num(dev0, i, &inode);
+        if (inode.id == EMPTY) {
+            return i;
+        }   
+    }
+    return -1;
+}
+
 int fs_create(char *filename, int mode)
 {
     if (mode != O_CREAT || fsd.root_dir.numentries >= DIRECTORY_SIZE) return SYSERR;
@@ -414,7 +425,7 @@ int fs_create(char *filename, int mode)
         if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
     }
 
-    int inode_id = -1;
+    int entry_index = -1;
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
         dirent_t sub_directory = fsd.root_dir.entry[i];
         if (sub_directory.inode_num == -1) {
@@ -422,11 +433,12 @@ int fs_create(char *filename, int mode)
             break;
         }
     }
+    if (entry_index == -1) return SYSERR;
+
+    int inode_id = get_empty_inode_num();
     if (inode_id == -1) return SYSERR;
 
     inode_t inode;
-    _fs_get_inode_by_num(dev0, inode_id, &inode);
-
     inode.id = inode_id;
     inode.type = INODE_TYPE_FILE;
     inode.nlink = 1;
@@ -607,6 +619,7 @@ int fs_unlink(char *filename)
             fs_clearmaskbit(inode.blocks[i]);
             inode.blocks[i] = EMPTY;
         }
+        inode.id = EMPTY;
         inode.size = 0;
         fsd.inodes_used--;
     }
