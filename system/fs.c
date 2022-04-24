@@ -366,6 +366,8 @@ int fs_open(char *filename, int flags)
 
     for (int i = 0; i < NUM_FD; i++) {
         dirent_t file_dirent = *oft[i].de;
+        printf(file_dirent.name);
+        printf((*oft[i].de).name);
         if (strcmp(file_dirent.name, filename) == 0 && oft[i].state == FSTATE_OPEN) return SYSERR;
     }
 
@@ -376,6 +378,7 @@ int fs_open(char *filename, int flags)
         if (strcmp(sub_directory.name, filename) == 0) {
             file_dirent = sub_directory;
             file_index = i;
+            break;
         }
     }
     if (file_index == -1) return SYSERR;
@@ -593,6 +596,18 @@ int fs_link(char *src_filename, char *dst_filename)
     return OK;
 }
 
+static inode_t reset_inode(inode_t inode) {
+    for (int i = 0; i < INODEDIRECTBLOCKS; i++) {
+        if (inode.blocks[i] == EMPTY) continue;
+        fs_clearmaskbit(inode.blocks[i]);
+        inode.blocks[i] = EMPTY;
+    }
+    inode.id = EMPTY;
+    inode.size = 0;
+    inode.nlink = 0;
+    return inode;
+}
+
 int fs_unlink(char *filename)
 {
     if (!filename) return SYSERR;
@@ -613,28 +628,29 @@ int fs_unlink(char *filename)
     inode_t inode;
     _fs_get_inode_by_num(dev0, inode_id, &inode);
     
-    inode.nlink--;
-    if (inode.nlink == 0) {
-        for (int i = 0; i < INODEDIRECTBLOCKS; i++) {
-            if (inode.blocks[i] == EMPTY) continue;
-            fs_clearmaskbit(inode.blocks[i]);
-            inode.blocks[i] = EMPTY;
-        }
-        inode.id = EMPTY;
-        inode.size = 0;
+    if (inode.nlink == 1) {
+        inode = reset_inode(inode);
         for (int i = 0; i < NUM_FD; i++) {
             if (oft[i].in.id == inode_id){
                 oft[i].in = inode;
                 oft[i].de = NULL;
                 oft[i].state = FSTATE_CLOSED;
+                oft[i].fileptr = 0;
             }
         }
         fsd.inodes_used--;
     }
     else {
+        inode.nlink--;
         for (int i = 0; i < NUM_FD; i++) {
             if (oft[i].in.id == inode_id){
                 oft[i].in = inode;
+            }
+            if (strcmp(oft[i].de->name, filename) == 0) {
+                oft[i].in = reset_inode(inode);
+                oft[i].de = NULL;
+                oft[i].state = FSTATE_CLOSED;
+                oft[i].fileptr = 0;
             }
         }
     }
