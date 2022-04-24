@@ -566,7 +566,7 @@ int fs_link(char *src_filename, char *dst_filename)
     _fs_put_inode_by_num(dev0, src_inode_id, &inode);
 
     for (int i = 0; i < NUM_FD; i++) {
-		if(oft[i].de->inode_num == src_inode_id) {
+		if(oft[i].in.id == src_inode_id) {
 			oft[i].in.nlink++;
 		}
   	}
@@ -608,19 +608,17 @@ int fs_unlink(char *filename)
             inode.blocks[i] = EMPTY;
         }
         inode.size = 0;
-        for (int i = 0; i < NUM_FD; i++) {
-            if (oft[i].in.id == inode_id){
-                oft[i].in = inode;
-                oft[i].de = NULL;
-                oft[i].state = FSTATE_CLOSED;
-                break;
-            }
-        }
         fsd.inodes_used--;
     }
     fsd.root_dir.entry[file_index].inode_num = EMPTY;
     strcpy(fsd.root_dir.entry[file_index].name, "");
-
+    for (int i = 0; i < NUM_FD; i++) {
+            if (oft[i].in.id == inode_id){
+                oft[i].in = inode;
+                oft[i].de = NULL;
+                oft[i].state = FSTATE_CLOSED;
+            }
+        }
     
     _fs_put_inode_by_num(dev0, inode_id, &inode);
     return OK;
