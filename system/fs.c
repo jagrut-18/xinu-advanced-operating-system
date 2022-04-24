@@ -429,7 +429,7 @@ int fs_create(char *filename, int mode)
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
         dirent_t sub_directory = fsd.root_dir.entry[i];
         if (sub_directory.inode_num == -1) {
-            inode_id = i;
+            entry_index = i;
             break;
         }
     }
@@ -453,7 +453,7 @@ int fs_create(char *filename, int mode)
     strcpy(new_dirent.name, filename);
     new_dirent.inode_num = inode_id;
 
-    fsd.root_dir.entry[fsd.root_dir.numentries] = new_dirent;
+    fsd.root_dir.entry[entry_index] = new_dirent;
     fsd.root_dir.numentries++;
 
     return fs_open(filename, O_RDWR);
@@ -598,8 +598,9 @@ int fs_unlink(char *filename)
     if (!filename) return SYSERR;
     dirent_t file_dirent;
     int file_index = -1;
-    for (int i = 0; i < fsd.root_dir.numentries; i++) {
+    for (int i = 0; i < DIRECTORY_SIZE; i++) {
         dirent_t sub_directory = fsd.root_dir.entry[i];
+        if (sub_directory.inode_num == EMPTY) continue;
         if (strcmp(sub_directory.name, filename) == 0) {
             file_dirent = sub_directory;
             file_index = i;
@@ -611,9 +612,9 @@ int fs_unlink(char *filename)
     int inode_id = file_dirent.inode_num;
     inode_t inode;
     _fs_get_inode_by_num(dev0, inode_id, &inode);
-
+    
     inode.nlink--;
-    if (inode.nlink == 1) {
+    if (inode.nlink == 0) {
         for (int i = 0; i < INODEDIRECTBLOCKS; i++) {
             if (inode.blocks[i] == EMPTY) continue;
             fs_clearmaskbit(inode.blocks[i]);
@@ -621,18 +622,26 @@ int fs_unlink(char *filename)
         }
         inode.id = EMPTY;
         inode.size = 0;
-        fsd.inodes_used--;
-    }
-    fsd.root_dir.entry[file_index].inode_num = EMPTY;
-    strcpy(fsd.root_dir.entry[file_index].name, "");
-    fsd.root_dir.numentries--;
-    for (int i = 0; i < NUM_FD; i++) {
+        for (int i = 0; i < NUM_FD; i++) {
             if (oft[i].in.id == inode_id){
                 oft[i].in = inode;
                 oft[i].de = NULL;
                 oft[i].state = FSTATE_CLOSED;
             }
         }
+        fsd.inodes_used--;
+    }
+    else {
+        for (int i = 0; i < NUM_FD; i++) {
+            if (oft[i].in.id == inode_id){
+                oft[i].in = inode;
+            }
+        }
+    }
+    
+    fsd.root_dir.entry[file_index].inode_num = EMPTY;
+    strcpy(fsd.root_dir.entry[file_index].name, "");
+    fsd.root_dir.numentries--;
     
     _fs_put_inode_by_num(dev0, inode_id, &inode);
     return OK;
