@@ -135,15 +135,48 @@ int fstest_testbitmask(void) {
  */
 int fstest_mkdev() {
 
-  int i;
+  // int j;
 
-  for (i = 0; i < 10; i++) {
-    ASSERT_PASS(bs_mkdev(0, MDEV_BLOCK_SIZE, MDEV_NUM_BLOCKS))
-    ASSERT_PASS(fs_mkfs(0, DEFAULT_NUM_INODES))
-    ASSERT_PASS(fs_create("test", O_CREAT))
-    ASSERT_PASS(fs_freefs(0))
-    ASSERT_PASS(bs_freedev(0))
-  }
+  // for (j = 0; j < 10; j++) {
+  //   ASSERT_PASS(bs_mkdev(0, MDEV_BLOCK_SIZE, MDEV_NUM_BLOCKS))
+  //   ASSERT_PASS(fs_mkfs(0, DEFAULT_NUM_INODES))
+  //   ASSERT_PASS(fs_create("test", O_CREAT))
+  //   ASSERT_PASS(fs_freefs(0))
+  //   ASSERT_PASS(bs_freedev(0))
+  // }
+
+int fd;
+
+
+ASSERT_PASS(bs_mkdev(0, MDEV_BLOCK_SIZE, MDEV_NUM_BLOCKS))
+ASSERT_PASS(fs_mkfs(0, DEFAULT_NUM_INODES))
+
+ASSERT_PASS(fd = fs_create("file", O_CREAT))
+ASSERT_PASS(fs_link("file", "file1"))
+ASSERT_PASS(fs_link("file", "file2"))
+ASSERT_PASS(fs_link("file", "file3"))
+ASSERT_PASS(fs_link("file", "file4"))
+ASSERT_PASS(fs_link("file", "file5"))
+ASSERT_PASS(fs_link("file", "file6"))
+ASSERT_PASS(fs_link("file", "file7"))
+ASSERT_PASS(fs_link("file", "file8"))
+ASSERT_PASS(fs_link("file", "file9"))
+ASSERT_PASS(fs_link("file", "file10"))
+ASSERT_PASS(fs_link("file", "file11"))
+ASSERT_PASS(fs_link("file", "file12"))
+ASSERT_PASS(fs_link("file", "file13"))
+ASSERT_PASS(fs_link("file", "file14"))
+ASSERT_PASS(fs_link("file", "file15"))
+
+ASSERT_PASS(fs_unlink("file7"))
+ASSERT_PASS(fs_unlink("file15"))
+
+
+ASSERT_PASS(fs_close(fd))
+
+ASSERT_PASS(fs_freefs(0));
+ASSERT_PASS(bs_freedev(0));
+
 
   return OK;
 }
