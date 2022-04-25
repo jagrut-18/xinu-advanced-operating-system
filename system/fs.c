@@ -599,18 +599,6 @@ int fs_link(char *src_filename, char *dst_filename)
     return OK;
 }
 
-static inode_t reset_inode(inode_t inode) {
-    for (int i = 0; i < INODEDIRECTBLOCKS; i++) {
-        if (inode.blocks[i] == EMPTY) continue;
-        fs_clearmaskbit(inode.blocks[i]);
-        inode.blocks[i] = EMPTY;
-    }
-    inode.id = EMPTY;
-    inode.size = 0;
-    inode.nlink = 0;
-    inode.type = 0;
-    return inode;
-}
 
 
 int fs_unlink(char *filename)
@@ -625,7 +613,15 @@ int fs_unlink(char *filename)
     _fs_get_inode_by_num(dev0, inode_id, &inode);
     
     if (inode.nlink == 1) {
-        inode = reset_inode(inode);
+        for (int i = 0; i < INODEDIRECTBLOCKS; i++) {
+            if (inode.blocks[i] == EMPTY) continue;
+            fs_clearmaskbit(inode.blocks[i]);
+        }
+        inode.id = EMPTY;
+        inode.size = 0;
+        inode.nlink = 0;
+        inode.type = 0;
+        memset(inode.blocks, EMPTY, sizeof(inode.blocks));
         for (int i = 0; i < NUM_FD; i++) {
             if (oft[i].in.id == inode_id){
                 oft[i].in = inode;
@@ -643,13 +639,20 @@ int fs_unlink(char *filename)
             if (oft[i].in.id == inode_id){
                 oft[i].in = inode;
             }
-            if (strcmp((*oft[i].de).name, filename) == 0) {
-                oft[i].in = reset_inode(inode);
-                oft[i].de = NULL;
-                oft[i].state = FSTATE_CLOSED;
-                oft[i].fileptr = 0;
-                oft[i].flag = 0;
-            }
+            // COMMENTED THIS CODE BECAUSE FILE WON'T BE OPEN WHEN UNLINKING
+            // if (strcmp((*oft[i].de).name, filename) == 0) {
+            //     for (int j = 0; j < INODEDIRECTBLOCKS; j++) {
+            //         oft[i].in.blocks[j] = EMPTY;
+            //     }
+            //     oft[i].in.id = EMPTY;
+            //     oft[i].in.size = 0;
+            //     oft[i].in.nlink = 0;
+            //     oft[i].in.type = 0;
+            //     oft[i].de = NULL;
+            //     oft[i].state = FSTATE_CLOSED;
+            //     oft[i].fileptr = 0;
+            //     oft[i].flag = 0;
+            // }
         }
     }
     
