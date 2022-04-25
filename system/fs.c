@@ -431,17 +431,12 @@ int fs_create(char *filename, int mode)
 {
     if (mode != O_CREAT || fsd.root_dir.numentries >= DIRECTORY_SIZE) return SYSERR;
 
-    for (int i = 0; i < fsd.root_dir.numentries; i++) {
-        dirent_t sub_directory = fsd.root_dir.entry[i];
-        if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
-    }
-
     int empty_entry_index = -1;
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
         dirent_t sub_directory = fsd.root_dir.entry[i];
-        if (sub_directory.inode_num == -1) {
+        if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
+        if (empty_entry_index == -1 && sub_directory.inode_num == EMPTY) {
             empty_entry_index = i;
-            break;
         }
     }
     if (empty_entry_index == -1) return SYSERR;
