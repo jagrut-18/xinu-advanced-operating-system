@@ -613,24 +613,17 @@ static inode_t reset_inode(inode_t inode) {
     inode.id = EMPTY;
     inode.size = 0;
     inode.nlink = 0;
+    inode.type = 0;
     return inode;
 }
+
 
 int fs_unlink(char *filename)
 {
     if (!filename) return SYSERR;
-    dirent_t file_dirent;
-    int file_index = -1;
-    for (int i = 0; i < DIRECTORY_SIZE; i++) {
-        dirent_t sub_directory = fsd.root_dir.entry[i];
-        if (sub_directory.inode_num == EMPTY) continue;
-        if (strcmp(sub_directory.name, filename) == 0) {
-            file_dirent = sub_directory;
-            file_index = i;
-            break;
-        }
-    }
+    int file_index = get_file_index_from_root(filename);
     if (file_index == -1) return SYSERR;
+    dirent_t file_dirent = fsd.root_dir.entry[file_index];
 
     int inode_id = file_dirent.inode_num;
     inode_t inode;
@@ -644,6 +637,7 @@ int fs_unlink(char *filename)
                 oft[i].de = NULL;
                 oft[i].state = FSTATE_CLOSED;
                 oft[i].fileptr = 0;
+                oft[i].flag = 0;
             }
         }
         fsd.inodes_used--;
@@ -659,6 +653,7 @@ int fs_unlink(char *filename)
                 oft[i].de = NULL;
                 oft[i].state = FSTATE_CLOSED;
                 oft[i].fileptr = 0;
+                oft[i].flag = 0;
             }
         }
     }
