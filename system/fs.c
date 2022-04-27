@@ -622,15 +622,16 @@ int fs_unlink(char *filename)
         inode.nlink = 0;
         inode.type = 0;
         memset(inode.blocks, EMPTY, sizeof(inode.blocks));
-        for (int i = 0; i < NUM_FD; i++) {
-            if (oft[i].in.id == inode_id){
-                oft[i].in = inode;
-                oft[i].de = NULL;
-                oft[i].state = FSTATE_CLOSED;
-                oft[i].fileptr = 0;
-                oft[i].flag = 0;
-            }
-        }
+        // COMMENTED THIS CODE BECAUSE FILE WON'T BE OPEN WHEN UNLINKING
+        // for (int i = 0; i < NUM_FD; i++) {
+        //     if (oft[i].in.id == inode_id){
+        //         oft[i].in = inode;
+        //         oft[i].de = NULL;
+        //         oft[i].state = FSTATE_CLOSED;
+        //         oft[i].fileptr = 0;
+        //         oft[i].flag = 0;
+        //     }
+        // }
         fsd.inodes_used--;
     }
     else {
