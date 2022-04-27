@@ -540,7 +540,10 @@ int fs_write(int fd, void *buf, int nbytes)
                 found_empty_inode_block = 1;
                 break;
             }
-            if (found_empty_inode_block == 0) return nbytes + i;
+            if (found_empty_inode_block == 0){
+                fs_clearmaskbit(empty_block_index);
+                return nbytes + i;
+            }
             oft[fd].in.size += fsd.blocksz;
             _fs_put_inode_by_num(dev0, oft[fd].in.id, &oft[fd].in);
         }
