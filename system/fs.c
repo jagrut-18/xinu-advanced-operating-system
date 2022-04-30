@@ -529,7 +529,7 @@ int fs_open(char *filename, int flags)
     inode_t directory_inode;
     int directory_depth = 0;
     for (a = b = filename; *b != '\0'; b++) {
-        if (directory_depth > 16) return SYSERR;
+        if (directory_depth >= 16) return SYSERR;
 
         if (*b == '/') {
             if ((b-a) > FILENAMELEN) return SYSERR;
@@ -632,7 +632,7 @@ int fs_create(char *filename, int mode)
     inode_t directory_inode;
     int directory_depth = 0;
     for (a = b = filename; *b != '\0'; b++) {
-        if (directory_depth > 16) return SYSERR;
+        if (directory_depth >= 16) return SYSERR;
 
         if (*b == '/') {
             if ((b-a) > FILENAMELEN) return SYSERR;
@@ -655,8 +655,9 @@ int fs_create(char *filename, int mode)
         }
     }
 
-    if (current_directory_pointer->numentries >= DIRECTORY_SIZE) return SYSERR;
     filename = a;
+    if (strlen(filename) > FILENAMELEN) return SYSERR;
+    if (current_directory_pointer->numentries >= DIRECTORY_SIZE) return SYSERR;
 
     int empty_entry_index = -1;
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
@@ -709,44 +710,6 @@ int fs_create(char *filename, int mode)
     if (mode == O_DIR) return OK;
     return fs_open(full_filename, O_RDWR);
 }
-
-// int fs_create(char *filename, int mode)
-// {
-//     if (mode != O_CREAT || fsd.root_dir.numentries >= DIRECTORY_SIZE) return SYSERR;
-
-//     int empty_entry_index = -1;
-//     for (int i = 0; i < DIRECTORY_SIZE; i++) {
-//         dirent_t sub_directory = fsd.root_dir.entry[i];
-//         if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
-//         if (empty_entry_index == -1 && sub_directory.inode_num == EMPTY) {
-//             empty_entry_index = i;
-//         }
-//     }
-//     if (empty_entry_index == -1) return SYSERR;
-
-//     int inode_id = get_empty_inode_num();
-//     if (inode_id == -1) return SYSERR;
-
-//     inode_t inode;
-//     inode.id = inode_id;
-//     inode.type = INODE_TYPE_FILE;
-//     inode.nlink = 1;
-//     inode.device = dev0;
-//     inode.size = 0;
-//     memset(inode.blocks, EMPTY, sizeof(inode.blocks));
-
-//     _fs_put_inode_by_num(dev0, inode_id, &inode);
-//     fsd.inodes_used++;
-
-//     dirent_t new_dirent;
-//     strcpy(new_dirent.name, filename);
-//     new_dirent.inode_num = inode_id;
-
-//     fsd.root_dir.entry[empty_entry_index] = new_dirent;
-//     fsd.root_dir.numentries++;
-
-//     return fs_open(filename, O_RDWR);
-// }
 
 
 int fs_seek(int fd, int offset)
@@ -846,18 +809,90 @@ int fs_write(int fd, void *buf, int nbytes)
 int fs_link(char *src_filename, char *dst_filename)
 {
     if (!src_filename || !dst_filename) return SYSERR;
-    if (fsd.root_dir.numentries >= DIRECTORY_SIZE) return SYSERR;
+
+    // -------------------------------------------------------------------- SRC PARSE
+    char *a, *b;
+    char tmp[FILENAMELEN];
+
+    directory_t *src_directory_pointer = &fsd.root_dir;
+    inode_t directory_inode;
+    int directory_depth = 0;
+    for (a = b = src_filename; *b != '\0'; b++) {
+        if (directory_depth >= 16) return SYSERR;
+
+        if (*b == '/') {
+            if ((b-a) > FILENAMELEN) return SYSERR;
+            memset(tmp, 0, sizeof(tmp));
+            memcpy(tmp, a, b-a);
+
+            // printf("> %s\n", tmp);
+            dirent_t* file_entry_pointer = get_file_entry_address(src_directory_pointer, tmp);
+            if (file_entry_pointer == NULL) return SYSERR;
+            _fs_get_inode_by_num(dev0, file_entry_pointer->inode_num, &directory_inode);
+            if (directory_inode.type == INODE_TYPE_DIR) {
+                src_directory_pointer = &dev0_blocks[directory_inode.blocks[0] * fsd.blocksz]; // setting current working directory
+            }
+            else {
+                return SYSERR; // if file in between of path
+            }
+
+            directory_depth++;
+            a = b + 1;
+        }
+    }
+    src_filename = a;
+
+    
+    // -------------------------------------------------------------------- DST PARSE
+
+    char *c, *d;
+    char dst_tmp[FILENAMELEN];
+
+    directory_t *dst_directory_pointer = &fsd.root_dir;
+    inode_t dst_directory_inode;
+    int dst_directory_depth = 0;
+    for (c = d = src_filename; *d != '\0'; d++) {
+        if (dst_directory_depth >= 16) return SYSERR;
+
+        if (*d == '/') {
+            if ((d-c) > FILENAMELEN) return SYSERR;
+            memset(dst_tmp, 0, sizeof(tmp));
+            memcpy(dst_tmp, c, d-c);
+
+            // printf("> %s\n", tmp);
+            dirent_t* file_entry_pointer = get_file_entry_address(dst_directory_pointer, dst_tmp);
+            if (file_entry_pointer == NULL) return SYSERR;
+            _fs_get_inode_by_num(dev0, file_entry_pointer->inode_num, &dst_directory_inode);
+            if (dst_directory_inode.type == INODE_TYPE_DIR) {
+                dst_directory_pointer = &dev0_blocks[dst_directory_inode.blocks[0] * fsd.blocksz]; // setting current working directory
+            }
+            else {
+                return SYSERR; // if file in between of path
+            }
+
+            dst_directory_depth++;
+            c = d + 1;
+        }
+    }
+    dst_filename = c;
+    if (strlen(dst_filename) > FILENAMELEN) return SYSERR;
+    
+    // --------------------------------------------------------------------
+
+    if (dst_directory_pointer->numentries >= DIRECTORY_SIZE) return SYSERR;
     dirent_t src_dirent;
     int found_src = 0;
     int empty_entry_index = -1;
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
-        dirent_t sub_directory = fsd.root_dir.entry[i];
+        dirent_t sub_directory = src_directory_pointer->entry[i];
         if (strcmp(sub_directory.name, dst_filename) == 0) return SYSERR;
         if (found_src != 1 && strcmp(sub_directory.name, src_filename) == 0) {
             src_dirent = sub_directory;
             found_src = 1;
         }
-        if (empty_entry_index == -1 && sub_directory.inode_num == EMPTY){
+        
+        dirent_t dst_sub_directory = dst_directory_pointer->entry[i];
+        if (empty_entry_index == -1 && dst_sub_directory.inode_num == EMPTY){
             empty_entry_index = i;
         }
     }
@@ -879,8 +914,8 @@ int fs_link(char *src_filename, char *dst_filename)
     strcpy(dst_dirent.name, dst_filename);
     dst_dirent.inode_num = src_inode_id;
 
-    fsd.root_dir.entry[empty_entry_index] = dst_dirent;
-    fsd.root_dir.numentries++;
+    dst_directory_pointer->entry[empty_entry_index] = dst_dirent;
+    dst_directory_pointer->numentries++;
 
     return OK;
 }
@@ -890,9 +925,42 @@ int fs_link(char *src_filename, char *dst_filename)
 int fs_unlink(char *filename)
 {
     if (!filename) return SYSERR;
-    int file_index = get_file_index_from_directory(fsd.root_dir, filename);
+
+    char *a, *b;
+    char tmp[FILENAMELEN];
+
+    directory_t *current_directory_pointer = &fsd.root_dir;
+    inode_t directory_inode;
+    int directory_depth = 0;
+    for (a = b = filename; *b != '\0'; b++) {
+        if (directory_depth >= 16) return SYSERR;
+
+        if (*b == '/') {
+            if ((b-a) > FILENAMELEN) return SYSERR;
+            memset(tmp, 0, sizeof(tmp));
+            memcpy(tmp, a, b-a);
+
+            // printf("> %s\n", tmp);
+            dirent_t* file_entry_pointer = get_file_entry_address(current_directory_pointer, tmp);
+            if (file_entry_pointer == NULL) return SYSERR;
+            _fs_get_inode_by_num(dev0, file_entry_pointer->inode_num, &directory_inode);
+            if (directory_inode.type == INODE_TYPE_DIR) {
+                current_directory_pointer = &dev0_blocks[directory_inode.blocks[0] * fsd.blocksz]; // setting current working directory
+            }
+            else {
+                return SYSERR; // if file in between of path
+            }
+
+            directory_depth++;
+            a = b + 1;
+        }
+    }
+
+    filename = a;
+
+    int file_index = get_file_index_from_directory((*current_directory_pointer), filename);
     if (file_index == -1) return SYSERR;
-    dirent_t file_dirent = fsd.root_dir.entry[file_index];
+    dirent_t file_dirent = current_directory_pointer->entry[file_index];
 
     int inode_id = file_dirent.inode_num;
     inode_t inode;
@@ -943,9 +1011,9 @@ int fs_unlink(char *filename)
         }
     }
     
-    fsd.root_dir.entry[file_index].inode_num = EMPTY;
-    strcpy(fsd.root_dir.entry[file_index].name, "");
-    fsd.root_dir.numentries--;
+    current_directory_pointer->entry[file_index].inode_num = EMPTY;
+    strcpy(current_directory_pointer->entry[file_index].name, "");
+    current_directory_pointer->numentries--;
     
     _fs_put_inode_by_num(dev0, inode_id, &inode);
     return OK;
