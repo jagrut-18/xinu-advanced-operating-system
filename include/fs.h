@@ -14,6 +14,7 @@
 
 /* Modes for file creation */
 #define O_CREAT 11
+#define O_DIR   12
 
 /* Flags of file */
 #define O_RDONLY 0
@@ -352,5 +353,6 @@ void fs_print_fsd(void);
  * Print entries of the root directory
  */
 void fs_print_dir(void);
+void fs_print_dirs(directory_t *, int);
 
 #endif /* FS_H */
