@@ -779,18 +779,25 @@ int fs_write(int fd, void *buf, int nbytes)
             }
             if (empty_block_index == -1) return nbytes + i;
 
-            int found_empty_inode_block = 0;
+            int empty_inode_block = -1;
             for (int j = 0; j < INODEDIRECTBLOCKS; j++) {
                 if (oft[fd].in.blocks[j] != EMPTY) continue;
                 oft[fd].in.blocks[j] = empty_block_index;
-                found_empty_inode_block = 1;
+                empty_inode_block = j;
                 break;
             }
-            if (found_empty_inode_block == 0){
+            if (empty_inode_block == -1){
                 fs_clearmaskbit(empty_block_index);
                 return nbytes + i;
             }
             oft[fd].in.size += fsd.blocksz;
+            for (int j = 0; j < NUM_FD; j++) {
+                if (j == fd) continue;
+                if (oft[j].in.id == oft[fd].in.id) {
+                    oft[j].in.blocks[empty_inode_block] = oft[fd].in.blocks[empty_inode_block];
+                    oft[j].in.size += fsd.blocksz;
+                }
+            }
             _fs_put_inode_by_num(dev0, oft[fd].in.id, &oft[fd].in);
         }
 
@@ -957,6 +964,7 @@ int fs_unlink(char *filename)
     }
 
     filename = a;
+    if (strlen(filename) > FILENAMELEN) return SYSERR;
 
     int file_index = get_file_index_from_directory((*current_directory_pointer), filename);
     if (file_index == -1) return SYSERR;
