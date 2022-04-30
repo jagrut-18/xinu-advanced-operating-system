@@ -4,10 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef FS
+// #ifdef FS
 #include <fs.h>
 
-static fsystem_t fsd;
+fsystem_t fsd;
 int dev0_numblocks;
 int dev0_blocksize;
 char *dev0_blocks;
@@ -355,13 +355,136 @@ void fs_printfreemask(void)
     printf("\n");
 }
 
+void fs_print_dirs(directory_t *working_dir, int level) {
+
+  int i, j;
+
+  if (working_dir == NULL) {
+    working_dir = &(fsd.root_dir);
+    level = 0;
+    printf("\nroot\n");
+  }
+
+  inode_t _in;
+  directory_t cache;
+
+  for (i = 0; i < DIRECTORY_SIZE; i++) {
+    if (working_dir->entry[i].inode_num != EMPTY) {
+
+      _fs_get_inode_by_num(dev0, working_dir->entry[i].inode_num, &_in);
+
+      for (j = 0; j <= level; j++) printf("\033[38;5;238m:\033[39m ");
+      if (_in.type == INODE_TYPE_FILE) {
+        printf("f %s\n", working_dir->entry[i].name);
+      } else {
+        printf("d %s\n", working_dir->entry[i].name);
+        bs_bread(dev0, _in.blocks[0], 0, &cache, sizeof(directory_t));
+        if (cache.numentries > 0) fs_print_dirs(&cache, level + 1);
+      }
+    }
+  }
+}
+
+/*
+ * parse_path
+ * Parse the directory path given by @input
+ * Output every intermediate directory as it parses
+ * Writes the start of the last level to @offset
+ *
+ * @param    input    input path string
+ * @param    offset   pointer into the input string (last level)
+ */
+void parse_path(char *input, char **offset) {
+
+  /*  xxxxx/xxxxx/xxxx0
+   *  ^
+   *  a,b
+   *
+   *  #####/xxxxx/xxxx0
+   *  ^    ^
+   *  a    b
+   *
+   *  xxxxx/#####/xxxx0
+   *        ^    ^
+   *        a    b
+   *
+   *  xxxxx/xxxxx/####0
+   *              ^   ^
+   *              a   b
+   */
+
+  char *a, *b;
+  char tmp[FILENAMELEN];
+
+  if (input == NULL) return;
+
+  *offset = input;
+
+  for (a = b = input; *b != '\0'; b++) {
+
+    if (*b == '/') {
+
+      memset(tmp, 0, sizeof(tmp));
+      memcpy(tmp, a, b-a);
+
+      printf("> %s\n", tmp);
+
+      a = b + 1;
+    }
+  }
+
+  if (a < b) *offset = a;
+}
+
+/*
+ * Test the parse_path function
+ */
+int fstest_parsing_directories() {
+
+  char filename[256];
+  char *offset = NULL;
+
+  printf("Parsing: [%s]\n", NULL);
+  parse_path(NULL, &offset);
+  printf("Returned: [%s] [%s]\n", NULL, offset);
+
+  sprintf(filename, "");
+  printf("\nParsing: [%s]\n", filename);
+  parse_path(filename, &offset);
+  printf("Returned: [%s] [%s]\n", filename, offset);
+
+  sprintf(filename, "filename");
+  printf("\nParsing: [%s]\n", filename);
+  parse_path(filename, &offset);
+  printf("Returned: [%s] [%s] (changed: %d)\n", filename, offset, offset - filename ? 1 : 0);
+
+  sprintf(filename, "dirname/filename");
+  printf("\nParsing: [%s]\n", filename);
+  parse_path(filename, &offset);
+  printf("Returned: [%s] [%s] (changed: %d)\n", filename, offset, offset - filename ? 1 : 0);
+
+  sprintf(filename, "dirname/subdir/filename");
+  printf("\nParsing: [%s]\n", filename);
+  parse_path(filename, &offset);
+  printf("Returned: [%s] [%s] (changed: %d)\n", filename, offset, offset - filename ? 1 : 0);
+
+  sprintf(filename, "dirname/subdir/subsub/filename");
+  printf("\nParsing: [%s]\n", filename);
+  parse_path(filename, &offset);
+  printf("Returned: [%s] [%s] (changed: %d)\n", filename, offset, offset - filename ? 1 : 0);
+
+  return OK;
+}
+
+
+
 /**
  * TODO: implement the functions below
  */
 
-static int get_file_index_from_root(char *filename) {
+static int get_file_index_from_directory(directory_t directory, char *filename) {
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
-        dirent_t sub_directory = fsd.root_dir.entry[i];
+        dirent_t sub_directory = directory.entry[i];
         if (sub_directory.inode_num == EMPTY) continue;
         if (strcmp(sub_directory.name, filename) == 0) {
             return i;
@@ -370,14 +493,74 @@ static int get_file_index_from_root(char *filename) {
     return -1;
 }
 
+static dirent_t* get_file_entry_address(directory_t *working_dir, char *filename) {
+
+  int i, j;
+
+  if (working_dir == NULL) {
+    working_dir = &(fsd.root_dir);
+  }
+
+  inode_t _in;
+  directory_t cache;
+
+  for (i = 0; i < DIRECTORY_SIZE; i++) {
+    if (working_dir->entry[i].inode_num != EMPTY) {
+
+      _fs_get_inode_by_num(dev0, working_dir->entry[i].inode_num, &_in);
+
+        if (strcmp(working_dir->entry[i].name, filename) == 0) {
+            return &(working_dir->entry[i]);
+        }
+    }
+  }
+  return NULL;
+}
+
 int fs_open(char *filename, int flags)
 {
     if (flags != O_RDONLY && flags != O_WRONLY && flags != O_RDWR) return SYSERR;
 
+    char *a, *b;
+    char tmp[FILENAMELEN];
+    char *full_filename = filename;
+
+    directory_t *current_directory_pointer = &fsd.root_dir;
+    inode_t directory_inode;
+    int directory_depth = 0;
+    for (a = b = filename; *b != '\0'; b++) {
+        if (directory_depth > 16) return SYSERR;
+
+        if (*b == '/') {
+            if ((b-a) > FILENAMELEN) return SYSERR;
+            memset(tmp, 0, sizeof(tmp));
+            memcpy(tmp, a, b-a);
+
+            // printf("> %s\n", tmp);
+            dirent_t* file_entry_pointer = get_file_entry_address(current_directory_pointer, tmp);
+            if (file_entry_pointer == NULL) return SYSERR;
+            _fs_get_inode_by_num(dev0, file_entry_pointer->inode_num, &directory_inode);
+            if (directory_inode.type == INODE_TYPE_DIR) {
+                current_directory_pointer = &dev0_blocks[directory_inode.blocks[0] * fsd.blocksz]; // setting current working directory
+            }
+            else {
+                return SYSERR; // if file in between of path
+            }
+
+            directory_depth++;
+            a = b + 1;
+        }
+    }
+    filename = a;
+
+    
+    dirent_t* file_entry_pointer = get_file_entry_address(current_directory_pointer, filename);
+    if (file_entry_pointer == NULL) return SYSERR;
+
     int fd = -1;
     for (int i = 0; i < NUM_FD; i++) {
         dirent_t file_dirent = *oft[i].de;
-        if (strcmp(file_dirent.name, filename) == 0) {
+        if (strcmp(file_dirent.name, filename) == 0 && oft[i].de == file_entry_pointer) {
             if (oft[i].state == FSTATE_OPEN) return SYSERR;
             fd = i;
             break;
@@ -387,17 +570,15 @@ int fs_open(char *filename, int flags)
         }
     }
 
-    int file_index = get_file_index_from_root(filename);
-    if (file_index == -1) return SYSERR;
-    dirent_t file_dirent = fsd.root_dir.entry[file_index];
 
-    int inode_id = file_dirent.inode_num;
+    int inode_id = file_entry_pointer->inode_num;
     inode_t inode;
     _fs_get_inode_by_num(dev0, inode_id, &inode);
+    if (inode.type == INODE_TYPE_DIR) return SYSERR;
 
     oft[fd].state = FSTATE_OPEN;
     oft[fd].fileptr = 0;
-    oft[fd].de = &fsd.root_dir.entry[file_index];
+    oft[fd].de = file_entry_pointer;
     oft[fd].in = inode;
     oft[fd].flag = flags;
 
@@ -427,13 +608,59 @@ static int get_empty_inode_num(){
     return -1;
 }
 
+static int get_empty_data_block(){
+    for (int i = 18; i < fsd.nblocks; i++) {
+        if (fs_getmaskbit(i) == 1) continue;
+        return i;
+    }
+    return -1;
+}
+
 int fs_create(char *filename, int mode)
 {
-    if (mode != O_CREAT || fsd.root_dir.numentries >= DIRECTORY_SIZE) return SYSERR;
+    if (mode != O_CREAT && mode != O_DIR) return SYSERR;
+
+    // char *offset = NULL;
+    // parse_path(filename, offset);
+    // printf("Returned: [%s] [%s]\n", filename, offset);
+
+    char *a, *b;
+    char tmp[FILENAMELEN];
+    char *full_filename = filename;
+
+    directory_t *current_directory_pointer = &fsd.root_dir;
+    inode_t directory_inode;
+    int directory_depth = 0;
+    for (a = b = filename; *b != '\0'; b++) {
+        if (directory_depth > 16) return SYSERR;
+
+        if (*b == '/') {
+            if ((b-a) > FILENAMELEN) return SYSERR;
+            memset(tmp, 0, sizeof(tmp));
+            memcpy(tmp, a, b-a);
+
+            // printf("> %s\n", tmp);
+            dirent_t* file_entry_pointer = get_file_entry_address(current_directory_pointer, tmp);
+            if (file_entry_pointer == NULL) return SYSERR;
+            _fs_get_inode_by_num(dev0, file_entry_pointer->inode_num, &directory_inode);
+            if (directory_inode.type == INODE_TYPE_DIR) {
+                current_directory_pointer = &dev0_blocks[directory_inode.blocks[0] * fsd.blocksz]; // setting current working directory
+            }
+            else {
+                return SYSERR; // if file in between of path
+            }
+
+            directory_depth++;
+            a = b + 1;
+        }
+    }
+
+    if (current_directory_pointer->numentries >= DIRECTORY_SIZE) return SYSERR;
+    filename = a;
 
     int empty_entry_index = -1;
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
-        dirent_t sub_directory = fsd.root_dir.entry[i];
+        dirent_t sub_directory = current_directory_pointer->entry[i];
         if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
         if (empty_entry_index == -1 && sub_directory.inode_num == EMPTY) {
             empty_entry_index = i;
@@ -446,11 +673,27 @@ int fs_create(char *filename, int mode)
 
     inode_t inode;
     inode.id = inode_id;
-    inode.type = INODE_TYPE_FILE;
+    inode.type = mode == O_CREAT ? INODE_TYPE_FILE : INODE_TYPE_DIR;
     inode.nlink = 1;
     inode.device = dev0;
     inode.size = 0;
     memset(inode.blocks, EMPTY, sizeof(inode.blocks));
+
+    if (mode == O_DIR){
+        int empty_data_block = get_empty_data_block();
+        if (empty_data_block == EMPTY) return SYSERR;
+        fs_setmaskbit(empty_data_block);
+
+        directory_t new_directory;
+        new_directory.numentries = 0;
+        for (int i = 0; i < DIRECTORY_SIZE; i++) {
+            new_directory.entry[i].inode_num = EMPTY;
+            memset(new_directory.entry[i].name, 0, FILENAMELEN);
+        }
+        bs_bwrite(dev0, empty_data_block, 0, &new_directory, sizeof(directory_t));
+        inode.blocks[0] = empty_data_block;
+    }
+
 
     _fs_put_inode_by_num(dev0, inode_id, &inode);
     fsd.inodes_used++;
@@ -459,11 +702,51 @@ int fs_create(char *filename, int mode)
     strcpy(new_dirent.name, filename);
     new_dirent.inode_num = inode_id;
 
-    fsd.root_dir.entry[empty_entry_index] = new_dirent;
-    fsd.root_dir.numentries++;
+    current_directory_pointer->entry[empty_entry_index] = new_dirent;
+    current_directory_pointer->numentries++;
 
-    return fs_open(filename, O_RDWR);
+
+    if (mode == O_DIR) return OK;
+    return fs_open(full_filename, O_RDWR);
 }
+
+// int fs_create(char *filename, int mode)
+// {
+//     if (mode != O_CREAT || fsd.root_dir.numentries >= DIRECTORY_SIZE) return SYSERR;
+
+//     int empty_entry_index = -1;
+//     for (int i = 0; i < DIRECTORY_SIZE; i++) {
+//         dirent_t sub_directory = fsd.root_dir.entry[i];
+//         if (strcmp(sub_directory.name, filename) == 0) return SYSERR;
+//         if (empty_entry_index == -1 && sub_directory.inode_num == EMPTY) {
+//             empty_entry_index = i;
+//         }
+//     }
+//     if (empty_entry_index == -1) return SYSERR;
+
+//     int inode_id = get_empty_inode_num();
+//     if (inode_id == -1) return SYSERR;
+
+//     inode_t inode;
+//     inode.id = inode_id;
+//     inode.type = INODE_TYPE_FILE;
+//     inode.nlink = 1;
+//     inode.device = dev0;
+//     inode.size = 0;
+//     memset(inode.blocks, EMPTY, sizeof(inode.blocks));
+
+//     _fs_put_inode_by_num(dev0, inode_id, &inode);
+//     fsd.inodes_used++;
+
+//     dirent_t new_dirent;
+//     strcpy(new_dirent.name, filename);
+//     new_dirent.inode_num = inode_id;
+
+//     fsd.root_dir.entry[empty_entry_index] = new_dirent;
+//     fsd.root_dir.numentries++;
+
+//     return fs_open(filename, O_RDWR);
+// }
 
 
 int fs_seek(int fd, int offset)
@@ -607,7 +890,7 @@ int fs_link(char *src_filename, char *dst_filename)
 int fs_unlink(char *filename)
 {
     if (!filename) return SYSERR;
-    int file_index = get_file_index_from_root(filename);
+    int file_index = get_file_index_from_directory(fsd.root_dir, filename);
     if (file_index == -1) return SYSERR;
     dirent_t file_dirent = fsd.root_dir.entry[file_index];
 
@@ -668,4 +951,4 @@ int fs_unlink(char *filename)
     return OK;
 }
 
-#endif /* FS */
+// #endif /* FS */
