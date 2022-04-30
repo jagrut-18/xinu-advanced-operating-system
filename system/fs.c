@@ -851,12 +851,12 @@ int fs_link(char *src_filename, char *dst_filename)
     directory_t *dst_directory_pointer = &fsd.root_dir;
     inode_t dst_directory_inode;
     int dst_directory_depth = 0;
-    for (c = d = src_filename; *d != '\0'; d++) {
+    for (c = d = dst_filename; *d != '\0'; d++) {
         if (dst_directory_depth >= 16) return SYSERR;
 
         if (*d == '/') {
             if ((d-c) > FILENAMELEN) return SYSERR;
-            memset(dst_tmp, 0, sizeof(tmp));
+            memset(dst_tmp, 0, sizeof(dst_tmp));
             memcpy(dst_tmp, c, d-c);
 
             // printf("> %s\n", tmp);
@@ -885,13 +885,13 @@ int fs_link(char *src_filename, char *dst_filename)
     int empty_entry_index = -1;
     for (int i = 0; i < DIRECTORY_SIZE; i++) {
         dirent_t sub_directory = src_directory_pointer->entry[i];
-        if (strcmp(sub_directory.name, dst_filename) == 0) return SYSERR;
         if (found_src != 1 && strcmp(sub_directory.name, src_filename) == 0) {
             src_dirent = sub_directory;
             found_src = 1;
         }
         
         dirent_t dst_sub_directory = dst_directory_pointer->entry[i];
+        if (strcmp(dst_sub_directory.name, dst_filename) == 0) return SYSERR;
         if (empty_entry_index == -1 && dst_sub_directory.inode_num == EMPTY){
             empty_entry_index = i;
         }
